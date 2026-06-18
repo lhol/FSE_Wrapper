@@ -1,4 +1,8 @@
 <project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.karenta</groupId>
+  <artifactId>FSE_Wrapper</artifactId>
+  <version>1.0.0</version>
   <!-- ... usual groupId/artifactId/version ... -->
 
   <dependencies>

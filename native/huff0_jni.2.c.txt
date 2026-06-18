@@ -1,0 +1,99 @@
+#include <stdlib.h>
+#include <string.h>
+
+#include "jni.h"
+#include "huf.h"
+
+#ifdef _WIN32
+  #define HUFF0_API __declspec(dllexport)
+#else
+  #define HUFF0_API __attribute__((visibility("default")))
+#endif
+
+// ---------- Plain C API for C# ----------
+
+HUFF0_API size_t huff0_compress_bound(size_t srcSize) {
+    return HUF_compressBound(srcSize);
+}
+
+HUFF0_API size_t huff0_compress(
+    const void* src, size_t srcSize,
+    void* dst, size_t dstCapacity)
+{
+    size_t cSize = HUF_compress(dst, dstCapacity, src, srcSize);
+    return HUF_isError(cSize) ? 0 : cSize;
+}
+
+HUFF0_API size_t huff0_decompress(
+    const void* src, size_t srcSize,
+    void* dst, size_t dstCapacity)
+{
+    size_t dSize = HUF_decompress(dst, dstCapacity, src, srcSize);
+    return HUF_isError(dSize) ? 0 : dSize;
+}
+
+// ---------- JNI for Java ----------
+
+JNIEXPORT jbyteArray JNICALL
+Java_com_example_huff0_Huff0_compressNative(
+    JNIEnv* env, jclass clazz, jbyteArray input)
+{
+    (void)clazz;
+
+    jsize srcSize = (*env)->GetArrayLength(env, input);
+    if (srcSize == 0)
+        return (*env)->NewByteArray(env, 0);
+
+    jbyte* src = (*env)->GetByteArrayElements(env, input, NULL);
+    size_t bound = huff0_compress_bound(srcSize);
+
+    jbyteArray outArr = (*env)->NewByteArray(env, bound);
+    jbyte* out = (*env)->GetByteArrayElements(env, outArr, NULL);
+
+    size_t cSize = huff0_compress(src, srcSize, out, bound);
+
+    (*env)->ReleaseByteArrayElements(env, input, src, JNI_ABORT);
+
+    if (cSize == 0) {
+        (*env)->ReleaseByteArrayElements(env, outArr, out, JNI_ABORT);
+        return (*env)->NewByteArray(env, 0);
+    }
+
+    (*env)->ReleaseByteArrayElements(env, outArr, out, 0);
+
+    if (cSize < bound) {
+        jbyteArray resized = (*env)->NewByteArray(env, cSize);
+        (*env)->SetByteArrayRegion(env, resized, 0, cSize, out);
+        return resized;
+    }
+
+    return outArr;
+}
+
+JNIEXPORT jbyteArray JNICALL
+Java_com_example_huff0_Huff0_decompressNative(
+    JNIEnv* env, jclass clazz, jbyteArray input, jint expectedSize)
+{
+    (void)clazz;
+
+    jsize srcSize = (*env)->GetArrayLength(env, input);
+    if (srcSize == 0 || expectedSize <= 0)
+        return (*env)->NewByteArray(env, 0);
+
+    jbyte* src = (*env)->GetByteArrayElements(env, input, NULL);
+
+    jbyteArray outArr = (*env)->NewByteArray(env, expectedSize);
+    jbyte* out = (*env)->GetByteArrayElements(env, outArr, NULL);
+
+    size_t dSize = huff0_decompress(src, srcSize, out, expectedSize);
+
+    (*env)->ReleaseByteArrayElements(env, input, src, JNI_ABORT);
+
+    if (dSize == 0 || dSize != (size_t)expectedSize) {
+        (*env)->ReleaseByteArrayElements(env, outArr, out, JNI_ABORT);
+        return (*env)->NewByteArray(env, 0);
+    }
+
+    (*env)->ReleaseByteArrayElements(env, outArr, out, 0);
+    return outArr;
+}

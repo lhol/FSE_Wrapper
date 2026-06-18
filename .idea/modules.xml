@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/FSE_Wrapper.iml" filepath="$PROJECT_DIR$/FSE_Wrapper.iml" />
+      <module fileurl="file://$PROJECT_DIR$/java-panama/java-panama.iml" filepath="$PROJECT_DIR$/java-panama/java-panama.iml" />
+      <module fileurl="file://$PROJECT_DIR$/java/src/jmh/jmh.iml" filepath="$PROJECT_DIR$/java/src/jmh/jmh.iml" />
+      <module fileurl="file://$PROJECT_DIR$/java/src/main/main.iml" filepath="$PROJECT_DIR$/java/src/main/main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/java/src/test/test.iml" filepath="$PROJECT_DIR$/java/src/test/test.iml" />
+    </modules>
+  </component>
+</project>

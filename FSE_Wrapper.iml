@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module version="4">
+  <component name="AdditionalModuleElements">
+    <content url="file://$MODULE_DIR$" dumb="true">
+      <excludeFolder url="file://$MODULE_DIR$/csharp/Fse.net/src/.vs/Fse.Net" />
+      <excludeFolder url="file://$MODULE_DIR$/csharp/Fse.net/src/.vs/ProjectEvaluation" />
+      <excludeFolder url="file://$MODULE_DIR$/csharp/Fse.net/src/bin/Debug" />
+      <excludeFolder url="file://$MODULE_DIR$/csharp/Fse.net/src/obj/Debug" />
+    </content>
+  </component>
+</module>

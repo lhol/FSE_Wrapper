@@ -1,0 +1,51 @@
+name: Build All
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-native:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: |
+          cd native
+          mkdir build
+          cd build
+          cmake ..
+      - name: Build
+        run: |
+          cd native/build
+          cmake --build . --config Release
+
+  build-java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build Java
+        run: |
+          cd java
+          mvn -B clean package
+
+  build-dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build .NET
+        run: |
+          cd Huff0.Net/src/Huff0.Net
+          dotnet build -c Release

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>Fse.Net</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Lars</Authors>
+    <Description>Cross-platform Huff0 compression/decompression bindings for .NET</Description>
+    <PackageLicenseExpression>BSD-2-Clause</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/lhol</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/lhol</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\runtimes\**\*" Pack="true" PackagePath="runtimes/" />
+  </ItemGroup>
+  <ItemGroup>
+  <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
+</ItemGroup>
+
+
+</Project>

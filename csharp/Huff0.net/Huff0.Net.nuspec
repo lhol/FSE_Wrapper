@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Huff0.Net</id>
+    <version>1.0.0</version>
+    <authors>Lars Holzinger</authors>
+    <owners>Lars Holzinger</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">BSD-2-Clause</license>
+    <description>Cross-platform Huff0 compression/decompression bindings for .NET</description>
+  </metadata>
+
+  <files>
+    <file src="src/Huff0.Net/*.cs" target="contentFiles/cs/netstandard2.0/" />
+    <file src="runtimes/**" target="runtimes/" />
+  </files>
+</package>

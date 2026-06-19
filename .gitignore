@@ -10,3 +10,4 @@
 **/*.pdb
 **/*.dbmdl
 target/
+native/build/**

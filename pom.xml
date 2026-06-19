@@ -45,10 +45,10 @@
               <goal>copy-resources</goal>
             </goals>
             <configuration>
-              <outputDirectory>${project.build.outputDirectory}/natives</outputDirectory>
+              <outputDirectory>target/classes/natives</outputDirectory>
               <resources>
                 <resource>
-                  <directory>${project.basedir}/native/build</directory>
+                  <directory>${project.basedir}/../native/build</directory>
                   <includes>
                     <include>*.dll</include>
                     <include>*.so</include>

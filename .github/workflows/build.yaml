@@ -34,8 +34,7 @@ jobs:
           java-version: '21'
       - name: Build Java
         run: |
-          cd java
-          mvn -B clean package
+          ./mvnw -B clean package
 
   build-dotnet:
     runs-on: ubuntu-latest
@@ -47,5 +46,5 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Build .NET
         run: |
-          cd Huff0.Net/src/Huff0.Net
+          cd csharp/Huff0.Net/src/
           dotnet build -c Release

@@ -44,7 +44,10 @@ jobs:
           dotnet run -c Release -- --exporters json --artifacts "artifacts"
 
       - name: Upload benchmark artifacts
-        uses: actions/upload-artifact@v4
+        run: |
+          python3 scripts/generate_dashboard.py
+
+      - uses: actions/upload-artifact@v4
         with:
           name: benchmarks
           path: |
@@ -52,7 +55,7 @@ jobs:
             java/jmh_results.json
             Huff0.Net/Benchmarks/artifacts
 
-                  - name: Generate dashboard
+      - name: Generate dashboard
         run: |
           python3 scripts/generate_dashboard.py
 

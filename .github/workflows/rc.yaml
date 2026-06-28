@@ -1,0 +1,134 @@
+name: Release Candidate
+
+on:
+  push:
+    tags: ['RC-v*.*.*']
+  workflow_dispatch:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build and test native libs on every target platform
+  # ---------------------------------------------------------------------------
+  native:
+    name: Native (${{ matrix.artifact }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: linux
+          - os: macos-latest
+            artifact: macos
+          - os: windows-latest
+            artifact: windows
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Set JAVA_HOME (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "JAVA_HOME=$env:JAVA_HOME" >> $env:GITHUB_ENV
+          echo "PATH=$env:JAVA_HOME/bin;$env:PATH" >> $env:GITHUB_ENV
+      - name: Build & Test
+        run: |
+          cmake -B native/build -S native
+          cmake --build native/build --config Release
+          cd native/build && ctest --output-on-failure -C Release
+      - name: Collect native libs
+        shell: bash
+        run: |
+          mkdir -p dist
+          find native/build -maxdepth 2 \( -name "*.so" -o -name "*.dylib" -o -name "*.dll" \) \
+            -exec cp {} dist/ \;
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.artifact }}
+          path: dist/
+
+  # ---------------------------------------------------------------------------
+  # Build + test Java, then package a multi-platform shaded JAR
+  # ---------------------------------------------------------------------------
+  java:
+    needs: native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Download Linux native libs (for JNI tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux
+          path: native/build
+      - name: Test
+        run: ./mvnw -B clean test
+      - name: Download all native libs (for multi-platform JAR)
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          merge-multiple: true
+          path: native/build
+      - name: Package shaded JAR
+        run: ./mvnw -B package -DskipTests
+      - name: Find shaded JAR
+        id: jar
+        run: echo "path=$(ls target/FSE_Wrapper-*.jar | grep -v original)" >> $GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: java-jar
+          path: ${{ steps.jar.outputs.path }}
+
+  # ---------------------------------------------------------------------------
+  # Build .NET libraries
+  # ---------------------------------------------------------------------------
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build
+        run: |
+          dotnet build csharp/Huff0.net/src/Huff0.Net.csproj -c Release
+          dotnet build csharp/Fse.net/src/Fse.Net.csproj -c Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-libs
+          path: |
+            csharp/Huff0.net/src/bin/Release/
+            csharp/Fse.net/src/bin/Release/
+
+  # ---------------------------------------------------------------------------
+  # Bundle everything into per-platform ZIP files ready for GitHub Release
+  # ---------------------------------------------------------------------------
+  package:
+    needs: [native, java, dotnet]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create release ZIPs
+        run: |
+          TAG=${{ github.ref_name }}
+          for platform in linux macos windows; do
+            zip -j FSE_Wrapper-${TAG}-native-${platform}.zip artifacts/native-${platform}/*
+          done
+          zip -j FSE_Wrapper-${TAG}-java.zip       artifacts/java-jar/*
+          zip -r FSE_Wrapper-${TAG}-dotnet.zip     artifacts/dotnet-libs/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-packages
+          path: FSE_Wrapper-*.zip

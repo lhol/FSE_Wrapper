@@ -1,0 +1,78 @@
+name: Release Validation
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Validate all components and run benchmarks on a single Ubuntu runner.
+  # The build was already verified by the RC tag — this confirms the release
+  # is good and produces benchmark results to attach to the release notes.
+  # ---------------------------------------------------------------------------
+  validate-and-bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # -- Native: build, test, benchmark -----------------------------------
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build native & run tests
+        run: |
+          cmake -B native/build -S native
+          cmake --build native/build --config Release
+          cd native/build && ctest --output-on-failure -C Release
+      - name: Native benchmark
+        run: |
+          cd native/build
+          ./bench_codecs > ../../native_bench.txt
+
+      # -- Java: test, package, benchmark -----------------------------------
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Java tests
+        run: ./mvnw -B clean test
+      - name: Java JMH benchmark
+        run: |
+          ./mvnw -B package -DskipTests
+          java -jar target/FSE_Wrapper-1.0.0.jar -rf json -rff jmh_results.json -wi 3 -i 5
+
+      # -- .NET: benchmark --------------------------------------------------
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: .NET Huff0 benchmark
+        run: |
+          dotnet run -c Release --project csharp/Huff0.net/Benchmarks/Benchmarks.csproj \
+            -- --exporters json --artifacts csharp/Huff0.net/Benchmarks/artifacts
+      - name: .NET Fse benchmark
+        run: |
+          dotnet run -c Release --project csharp/Fse.net/Benchmarks/Benchmarks.csproj \
+            -- --exporters json --artifacts csharp/Fse.net/Benchmarks/artifacts
+
+      # -- Dashboard & artifacts --------------------------------------------
+      - name: Generate dashboard
+        run: python3 scripts/generate_dashboard.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks-${{ github.ref_name }}
+          path: |
+            native_bench.txt
+            jmh_results.json
+            csharp/Huff0.net/Benchmarks/artifacts
+            csharp/Fse.net/Benchmarks/artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: performance-dashboard-${{ github.ref_name }}
+          path: performance_dashboard.md

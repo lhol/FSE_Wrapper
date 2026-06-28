@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -11,6 +11,10 @@ HISTORY = ROOT / "performance_history.json"
 def parse_native(path):
     """Parse native_bench.txt"""
     results = {}
+    if not path.exists():
+        print(f"Warning: {path} not found, skipping native benchmarks")
+        return results
+    
     with open(path, "r") as f:
         for line in f:
             m = re.match(r"(Huff0|FSE) compress:\s+([\d\.]+) MB/s", line)
@@ -23,6 +27,10 @@ def parse_native(path):
 def parse_jmh(path):
     """Parse JMH JSON results"""
     results = {}
+    if not path.exists():
+        print(f"Warning: {path} not found, skipping Java benchmarks")
+        return results
+    
     with open(path, "r") as f:
         data = json.load(f)
 
@@ -33,17 +41,42 @@ def parse_jmh(path):
         results[f"{name}_java"] = mbps
     return results
 
-def parse_dotnet(path):
-    """Parse BenchmarkDotNet JSON"""
+def parse_dotnet_huff0(path):
+    """Parse BenchmarkDotNet JSON for Huff0"""
     results = {}
-    with open(path, "r") as f:
+    json_file = path / "results.json"
+    if not json_file.exists():
+        print(f"Warning: {json_file} not found, skipping Huff0 .NET benchmarks")
+        return results
+    
+    with open(json_file, "r") as f:
         data = json.load(f)
 
-    for bench in data["Benchmarks"]:
+    for bench in data.get("Benchmarks", []):
         name = bench["DisplayInfo"]
-        ops_per_s = bench["Statistics"]["Mean"]  # nanoseconds per op
-        if ops_per_s > 0:
-            mbps = (1e9 / ops_per_s) * len("The quick brown fox jumps over the lazy dog") / (1024*1024)
+        # Mean is in nanoseconds
+        ns_per_op = bench["Statistics"]["Mean"]
+        if ns_per_op > 0:
+            mbps = (1e9 / ns_per_op) * len("The quick brown fox jumps over the lazy dog") / (1024*1024)
+            results[f"{name}_dotnet"] = mbps
+    return results
+
+def parse_dotnet_fse(path):
+    """Parse BenchmarkDotNet JSON for FSE"""
+    results = {}
+    json_file = path / "results.json"
+    if not json_file.exists():
+        print(f"Warning: {json_file} not found, skipping Fse .NET benchmarks")
+        return results
+    
+    with open(json_file, "r") as f:
+        data = json.load(f)
+
+    for bench in data.get("Benchmarks", []):
+        name = bench["DisplayInfo"]
+        ns_per_op = bench["Statistics"]["Mean"]
+        if ns_per_op > 0:
+            mbps = (1e9 / ns_per_op) * len("The quick brown fox jumps over the lazy dog") / (1024*1024)
             results[f"{name}_dotnet"] = mbps
     return results
 
@@ -90,12 +123,13 @@ def generate_markdown(timestamp, results, history):
     OUT.write_text("\n".join(lines))
 
 def main():
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     results = {}
-    results.update(parse_native(ROOT / "native/build/native_bench.txt"))
-    results.update(parse_jmh(ROOT / "java/jmh_results.json"))
-    results.update(parse_dotnet(ROOT / "Huff0.Net/Benchmarks/artifacts/results.json"))
+    results.update(parse_native(ROOT / "native_bench.txt"))
+    results.update(parse_jmh(ROOT / "jmh_results.json"))
+    results.update(parse_dotnet_huff0(ROOT / "csharp/Huff0.net/Benchmarks/artifacts"))
+    results.update(parse_dotnet_fse(ROOT / "csharp/Fse.net/Benchmarks/artifacts"))
 
     history = load_history()
     history.append({"timestamp": timestamp, **results})

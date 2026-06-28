@@ -5,9 +5,9 @@ on:
     tags: ['v*.*.*']
   workflow_dispatch:
 
-# Required to create GitHub Releases and upload assets
 permissions:
-  contents: write
+  contents: write   # create GitHub Releases and upload assets
+  id-token: write   # request OIDC token for NuGet trusted publishing
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -55,7 +55,7 @@ jobs:
             -exec cp {} dist/ \;
       - uses: actions/upload-artifact@v4
         with:
-          name: native-${{ matrix.artifact }}
+          name: native-${{ matrix.artifact }}-${{ github.ref_name }}
           path: dist/
 
   # ---------------------------------------------------------------------------
@@ -76,14 +76,14 @@ jobs:
       - name: Download Linux native libs (for JNI tests)
         uses: actions/download-artifact@v4
         with:
-          name: native-linux
+          name: native-linux-${{ github.ref_name }}
           path: native/build
       - name: Test
         run: ./mvnw -B clean test
       - name: Download all native libs (for multi-platform JAR)
         uses: actions/download-artifact@v4
         with:
-          pattern: native-*
+          pattern: native-*-${{ github.ref_name }}
           merge-multiple: true
           path: native/build
       - name: Package shaded JAR
@@ -93,7 +93,7 @@ jobs:
         run: echo "path=$(ls target/FSE_Wrapper-*.jar | grep -v original)" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v4
         with:
-          name: java-jar
+          name: java-jar-${{ github.ref_name }}
           path: ${{ steps.jar.outputs.path }}
 
   # ---------------------------------------------------------------------------
@@ -110,6 +110,7 @@ jobs:
       - name: Download all native artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: native-*-${{ github.ref_name }}
           path: native-artifacts
       - name: Populate NuGet runtimes directories
         run: |
@@ -119,13 +120,13 @@ jobs:
             mkdir -p csharp/${pkg}/runtimes/win-x64/native
           done
           # Huff0
-          cp native-artifacts/native-linux/libhuff0.so    csharp/Huff0.net/runtimes/linux-x64/native/
-          cp native-artifacts/native-macos/libhuff0.dylib  csharp/Huff0.net/runtimes/osx-arm64/native/
-          cp native-artifacts/native-windows/huff0.dll    csharp/Huff0.net/runtimes/win-x64/native/
+          cp native-artifacts/native-linux-${{ github.ref_name }}/libhuff0.so    csharp/Huff0.net/runtimes/linux-x64/native/
+          cp native-artifacts/native-macos-${{ github.ref_name }}/libhuff0.dylib  csharp/Huff0.net/runtimes/osx-arm64/native/
+          cp native-artifacts/native-windows-${{ github.ref_name }}/huff0.dll    csharp/Huff0.net/runtimes/win-x64/native/
           # Fse
-          cp native-artifacts/native-linux/libfse.so      csharp/Fse.net/runtimes/linux-x64/native/
-          cp native-artifacts/native-macos/libfse.dylib    csharp/Fse.net/runtimes/osx-arm64/native/
-          cp native-artifacts/native-windows/fse.dll      csharp/Fse.net/runtimes/win-x64/native/
+          cp native-artifacts/native-linux-${{ github.ref_name }}/libfse.so      csharp/Fse.net/runtimes/linux-x64/native/
+          cp native-artifacts/native-macos-${{ github.ref_name }}/libfse.dylib    csharp/Fse.net/runtimes/osx-arm64/native/
+          cp native-artifacts/native-windows-${{ github.ref_name }}/fse.dll      csharp/Fse.net/runtimes/win-x64/native/
       - name: Pack NuGet packages
         run: |
           VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
@@ -133,17 +134,17 @@ jobs:
           dotnet pack csharp/Fse.net/src/Fse.Net.csproj    -c Release -p:Version=${VERSION} -o nuget-out/
       - uses: actions/upload-artifact@v4
         with:
-          name: dotnet-libs
+          name: dotnet-libs-${{ github.ref_name }}
           path: |
             csharp/Huff0.net/src/bin/Release/
             csharp/Fse.net/src/bin/Release/
       - uses: actions/upload-artifact@v4
         with:
-          name: nuget-packages
+          name: nuget-packages-${{ github.ref_name }}
           path: nuget-out/*.nupkg
 
   # ---------------------------------------------------------------------------
-  # Bundle per-platform ZIPs
+  # Bundle per-platform ZIPs (filenames include the version tag)
   # ---------------------------------------------------------------------------
   package:
     needs: [native, java, dotnet]
@@ -151,23 +152,24 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
+          pattern: '*-${{ github.ref_name }}'
           path: artifacts
       - name: Create release ZIPs
         run: |
           TAG=${{ github.ref_name }}
           for platform in linux macos windows; do
-            zip -j FSE_Wrapper-${TAG}-native-${platform}.zip artifacts/native-${platform}/*
+            zip -j FSE_Wrapper-${TAG}-native-${platform}.zip  artifacts/native-${platform}-${TAG}/*
           done
-          zip -j FSE_Wrapper-${TAG}-java.zip    artifacts/java-jar/*
-          zip -r FSE_Wrapper-${TAG}-dotnet.zip  artifacts/dotnet-libs/
-          zip -j FSE_Wrapper-${TAG}-nuget.zip   artifacts/nuget-packages/*
+          zip -j FSE_Wrapper-${TAG}-java.zip    artifacts/java-jar-${TAG}/*
+          zip -r FSE_Wrapper-${TAG}-dotnet.zip  artifacts/dotnet-libs-${TAG}/
+          zip -j FSE_Wrapper-${TAG}-nuget.zip   artifacts/nuget-packages-${TAG}/*
       - uses: actions/upload-artifact@v4
         with:
-          name: release-packages
+          name: release-packages-${{ github.ref_name }}
           path: FSE_Wrapper-*.zip
 
   # ---------------------------------------------------------------------------
-  # Create the GitHub Release and attach all ZIPs
+  # Create the GitHub Release and attach all versioned ZIPs
   # ---------------------------------------------------------------------------
   release:
     needs: package
@@ -175,7 +177,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: release-packages
+          name: release-packages-${{ github.ref_name }}
           path: packages
       - name: Create GitHub Release
         env:
@@ -188,25 +190,32 @@ jobs:
             packages/*.zip
 
   # ---------------------------------------------------------------------------
-  # Publish NuGet packages to nuget.org
-  # Requires a repository secret named NUGET_API_KEY.
-  # To obtain one: https://www.nuget.org → Account → API Keys → Create
+  # Publish NuGet packages via Trusted Publishing (OIDC — no long-lived secret)
+  # Requires a Trusted Publisher policy on nuget.org linked to this workflow.
+  # See README for setup instructions.
   # ---------------------------------------------------------------------------
   nuget-publish:
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # must be set at job level (overrides workflow default)
     steps:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
       - uses: actions/download-artifact@v4
         with:
-          name: nuget-packages
+          name: nuget-packages-${{ github.ref_name }}
           path: nuget-out
-      - name: Push to nuget.org
+      - name: Authenticate with nuget.org (OIDC → short-lived API key)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: ${{ secrets.NUGET_USERNAME }}
+      - name: Push packages to nuget.org
         run: |
           dotnet nuget push nuget-out/*.nupkg \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
 
@@ -216,7 +225,7 @@ jobs:
   bench:
     needs: release
     runs-on: ubuntu-latest
-    continue-on-error: true  # don't fail the release if benchmarks error
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:

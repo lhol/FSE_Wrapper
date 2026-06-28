@@ -143,6 +143,8 @@ dotnet build csharp/Fse.net/src/Fse.Net.csproj    -c Release
 
 ## Architecture
 
+### Current: JNI / P/Invoke
+
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  Java / .NET application code                            │
@@ -161,6 +163,44 @@ dotnet build csharp/Fse.net/src/Fse.Net.csproj    -c Release
 └──────────────────────────────────────────────────────────┘
 ```
 
+### Alternative: Java 21+ Panama FFI
+
+Java 21+ introduces **Project Panama** (Foreign Function & Memory API) as a modern replacement for JNI. Unlike JNI, Panama provides:
+
+- **Simpler binding generation** — no C glue code needed; bindings are generated from C headers
+- **Better performance** — fewer layers of indirection
+- **Type safety** — compile-time verification of FFI calls
+- **Safer memory management** — structured concurrency and memory scopes
+
+Example using Panama (hypothetical future alternative):
+
+```java
+import java.lang.foreign.*;
+
+// Generated from FSE C headers via jextract
+import org.karenta.fse.RuntimeHelper;
+import org.karenta.fse.fse_compress_h;
+
+byte[] input = "Hello, world!".getBytes();
+Arena arena = Arena.ofConfined();
+
+try (MemorySession session = MemorySession.openConfined()) {
+    MemorySegment inputSegment = session.allocateArray(ValueLayout.JAVA_BYTE, input);
+    MemorySegment outputSegment = session.allocate(
+        ValueLayout.JAVA_LONG.byteSize() + input.length * 2
+    );
+    
+    long compressedSize = fse_compress_h.FSE_compress(
+        inputSegment, input.length,
+        outputSegment, outputSegment.byteSize()
+    ).get(ValueLayout.JAVA_LONG, 0);
+}
+```
+
+Currently, this project uses **JNI** for maximum compatibility across Java versions. Porting to Panama is a future enhancement once Panama API reaches stable/finalization status.
+
+See [Project Panama](https://openjdk.org/projects/panama/) and [Foreign Function & Memory API](https://docs.oracle.com/javase/21/docs/api/java.base/java/lang/foreign/package-summary.html) for details.
+
 ## Release workflow
 
 Releases are driven by Git tags and GitHub Actions:
@@ -176,7 +216,7 @@ Obtain it from [nuget.org](https://www.nuget.org) → Account → API Keys → C
 
 ## License
 
-This project consists of two BSD 2-Clause licensed parts:
+This project builds upon a BSD 2-Clause licensed part:
 
 ### FiniteStateEntropy (submodule)
 ```
@@ -199,7 +239,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
 ### FSE_Wrapper (this repository)
-BSD 2-Clause — see above terms, copyright holder: Lars Holmberg.
+MIT Licence, copyright holder: Lars Holzinger.
 
 ## Credits
 

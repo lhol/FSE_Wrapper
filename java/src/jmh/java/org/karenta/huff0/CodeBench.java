@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-public class CodecBench {
+public class CodeBench {
 
     private byte[] data;
 

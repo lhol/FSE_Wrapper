@@ -49,6 +49,13 @@ jobs:
           mkdir -p dist
           find native/build -maxdepth 2 \( -name "*.so" -o -name "*.dylib" -o -name "*.dll" \) \
             -exec cp {} dist/ \;
+          # Also collect benchmark binary if it exists
+          if [ -f "native/build/bench_codecs" ]; then
+            cp native/build/bench_codecs dist/
+          fi
+          if [ -f "native/build/Release/bench_codecs.exe" ]; then
+            cp native/build/Release/bench_codecs.exe dist/
+          fi
       - uses: actions/upload-artifact@v5
         with:
           name: native-${{ matrix.artifact }}-${{ github.ref_name }}
@@ -123,11 +130,17 @@ jobs:
           cp native-artifacts/native-linux-${{ github.ref_name }}/libfse.so      csharp/Fse.net/runtimes/linux-x64/native/
           cp native-artifacts/native-macos-${{ github.ref_name }}/libfse.dylib    csharp/Fse.net/runtimes/osx-arm64/native/
           cp native-artifacts/native-windows-${{ github.ref_name }}/fse.dll      csharp/Fse.net/runtimes/win-x64/native/
-      - name: Build and Pack NuGet packages
+      - name: Build Huff0.Net
         run: |
           VERSION=$(echo "${{ github.ref_name }}" | sed 's/^RC-v//')
           dotnet build csharp/Huff0.net/src/Huff0.Net.csproj -c Release -p:Version=${VERSION}
-          dotnet build csharp/Fse.net/src/Fse.Net.csproj    -c Release -p:Version=${VERSION}
+      - name: Build Fse.Net
+        run: |
+          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^RC-v//')
+          dotnet build csharp/Fse.net/src/Fse.Net.csproj -c Release -p:Version=${VERSION}
+      - name: Pack NuGet packages
+        run: |
+          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^RC-v//')
           dotnet pack csharp/Huff0.net/src/Huff0.Net.csproj -c Release -p:Version=${VERSION} --no-build -o nuget-out/
           dotnet pack csharp/Fse.net/src/Fse.Net.csproj    -c Release -p:Version=${VERSION} --no-build -o nuget-out/
       - uses: actions/upload-artifact@v5

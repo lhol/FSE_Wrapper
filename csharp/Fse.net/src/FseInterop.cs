@@ -5,13 +5,9 @@ namespace Fse.Net
 {
     public static class FseInterop
     {
-#if WINDOWS
-        private const string LIB = "fse.dll";
-#elif OSX
-        private const string LIB = "libfse.dylib";
-#else
-        private const string LIB = "libfse.so";
-#endif
+        // .NET resolves the name per platform automatically:
+        //   Windows → fse.dll  |  Linux → libfse.so  |  macOS → libfse.dylib
+        private const string LIB = "fse";
 
         [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
         private static extern UIntPtr fse_compress_bound(UIntPtr srcSize);

@@ -7,10 +7,11 @@ on:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Build and test native libs on every target platform
+  # Build and test native libs on every target platform in parallel.
+  # The matrix 'rid' field is the .NET Runtime Identifier used in NuGet packages.
   # ---------------------------------------------------------------------------
   native:
-    name: Native (${{ matrix.artifact }})
+    name: Native (${{ matrix.rid }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -18,10 +19,13 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact: linux
+            rid: linux-x64
           - os: macos-latest
             artifact: macos
+            rid: osx-arm64       # macos-latest runners are Apple Silicon
           - os: windows-latest
             artifact: windows
+            rid: win-x64
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,7 +56,7 @@ jobs:
           path: dist/
 
   # ---------------------------------------------------------------------------
-  # Build + test Java, then package a multi-platform shaded JAR
+  # Build + test Java, package a multi-platform shaded JAR
   # ---------------------------------------------------------------------------
   java:
     needs: native
@@ -90,28 +94,53 @@ jobs:
           path: ${{ steps.jar.outputs.path }}
 
   # ---------------------------------------------------------------------------
-  # Build .NET libraries
+  # Build .NET libs and create NuGet packages with all platform native libs
   # ---------------------------------------------------------------------------
   dotnet:
+    needs: native
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
-      - name: Build
+      - name: Download all native artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: native-artifacts
+      - name: Populate NuGet runtimes directories
         run: |
-          dotnet build csharp/Huff0.net/src/Huff0.Net.csproj -c Release
-          dotnet build csharp/Fse.net/src/Fse.Net.csproj -c Release
+          for pkg in Huff0.net Fse.net; do
+            mkdir -p csharp/${pkg}/runtimes/linux-x64/native
+            mkdir -p csharp/${pkg}/runtimes/osx-arm64/native
+            mkdir -p csharp/${pkg}/runtimes/win-x64/native
+          done
+          # Huff0
+          cp native-artifacts/native-linux/libhuff0.so   csharp/Huff0.net/runtimes/linux-x64/native/
+          cp native-artifacts/native-macos/libhuff0.dylib csharp/Huff0.net/runtimes/osx-arm64/native/
+          cp native-artifacts/native-windows/huff0.dll   csharp/Huff0.net/runtimes/win-x64/native/
+          # Fse
+          cp native-artifacts/native-linux/libfse.so     csharp/Fse.net/runtimes/linux-x64/native/
+          cp native-artifacts/native-macos/libfse.dylib  csharp/Fse.net/runtimes/osx-arm64/native/
+          cp native-artifacts/native-windows/fse.dll     csharp/Fse.net/runtimes/win-x64/native/
+      - name: Pack NuGet packages
+        run: |
+          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^RC-v//')
+          dotnet pack csharp/Huff0.net/src/Huff0.Net.csproj -c Release -p:Version=${VERSION} -o nuget-out/
+          dotnet pack csharp/Fse.net/src/Fse.Net.csproj    -c Release -p:Version=${VERSION} -o nuget-out/
       - uses: actions/upload-artifact@v4
         with:
           name: dotnet-libs
           path: |
             csharp/Huff0.net/src/bin/Release/
             csharp/Fse.net/src/bin/Release/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: nuget-out/*.nupkg
 
   # ---------------------------------------------------------------------------
-  # Bundle everything into per-platform ZIP files ready for GitHub Release
+  # Bundle everything into per-platform ZIP files for review
   # ---------------------------------------------------------------------------
   package:
     needs: [native, java, dotnet]
@@ -126,9 +155,61 @@ jobs:
           for platform in linux macos windows; do
             zip -j FSE_Wrapper-${TAG}-native-${platform}.zip artifacts/native-${platform}/*
           done
-          zip -j FSE_Wrapper-${TAG}-java.zip       artifacts/java-jar/*
-          zip -r FSE_Wrapper-${TAG}-dotnet.zip     artifacts/dotnet-libs/
+          zip -j FSE_Wrapper-${TAG}-java.zip    artifacts/java-jar/*
+          zip -r FSE_Wrapper-${TAG}-dotnet.zip  artifacts/dotnet-libs/
+          zip -j FSE_Wrapper-${TAG}-nuget.zip   artifacts/nuget-packages/*
       - uses: actions/upload-artifact@v4
         with:
           name: release-packages
           path: FSE_Wrapper-*.zip
+
+  # ---------------------------------------------------------------------------
+  # Verify benchmarks build and run correctly (does not publish)
+  # ---------------------------------------------------------------------------
+  bench:
+    needs: native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Download Linux native libs
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux
+          path: native/build
+      - name: Native benchmark
+        run: |
+          chmod +x native/build/bench_codecs
+          cd native/build && ./bench_codecs
+      - name: Java JMH benchmark (short run)
+        run: |
+          ./mvnw -B package -DskipTests
+          java -jar target/FSE_Wrapper-1.0.0.jar -rf json -rff jmh_results.json -wi 1 -i 2
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: .NET Huff0 benchmark
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/native/build
+        run: |
+          dotnet run -c Release --project csharp/Huff0.net/Benchmarks/Benchmarks.csproj \
+            -- --exporters json --artifacts csharp/Huff0.net/Benchmarks/artifacts
+      - name: .NET Fse benchmark
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/native/build
+        run: |
+          dotnet run -c Release --project csharp/Fse.net/Benchmarks/Benchmarks.csproj \
+            -- --exporters json --artifacts csharp/Fse.net/Benchmarks/artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rc-benchmarks
+          path: |
+            jmh_results.json
+            csharp/Huff0.net/Benchmarks/artifacts
+            csharp/Fse.net/Benchmarks/artifacts

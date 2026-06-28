@@ -5,13 +5,9 @@ namespace Huff0.Net
 {
     public static class Huff0Interop
     {
-#if WINDOWS
-        private const string LIB = "huff0.dll";
-#elif OSX
-        private const string LIB = "libhuff0.dylib";
-#else
-        private const string LIB = "libhuff0.so";
-#endif
+        // .NET resolves the name per platform automatically:
+        //   Windows → huff0.dll  |  Linux → libhuff0.so  |  macOS → libhuff0.dylib
+        private const string LIB = "huff0";
 
         [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
         private static extern UIntPtr huff0_compress_bound(UIntPtr srcSize);

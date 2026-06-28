@@ -212,6 +212,7 @@ jobs:
   nuget-publish:
     needs: release
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       id-token: write  # must be set at job level (overrides workflow default)
     steps:

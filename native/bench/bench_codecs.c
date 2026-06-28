@@ -1,20 +1,31 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include "huf.h"
 #include "fse.h"
 
-static const char* MSG = "The quick brown fox jumps over the lazy dog";
+static const char* SRC = "The quick brown fox jumps over the lazy dog";
 static const int ITER = 100000;
 
+#ifdef _WIN32
+#  include <windows.h>
+static double now_sec(void) {
+    LARGE_INTEGER freq, cnt;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&cnt);
+    return (double)cnt.QuadPart / (double)freq.QuadPart;
+}
+#else
+#  include <time.h>
 static double now_sec(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec + ts.tv_nsec / 1e9;
 }
+#endif
 
 int main() {
-    size_t srcSize = strlen(MSG);
+    size_t srcSize = strlen(SRC);
     size_t hbound = HUF_compressBound(srcSize);
     size_t fbound = FSE_compressBound(srcSize);
 
@@ -26,7 +37,7 @@ int main() {
 
     t0 = now_sec();
     for (int i = 0; i < ITER; ++i) {
-        size_t c = HUF_compress(hbuf, hbound, MSG, srcSize);
+        size_t c = HUF_compress(hbuf, hbound, SRC, srcSize);
         (void)c;
     }
     t1 = now_sec();
@@ -35,7 +46,7 @@ int main() {
 
     t0 = now_sec();
     for (int i = 0; i < ITER; ++i) {
-        size_t c = FSE_compress(fbuf, fbound, MSG, srcSize);
+        size_t c = FSE_compress(fbuf, fbound, SRC, srcSize);
         (void)c;
     }
     t1 = now_sec();

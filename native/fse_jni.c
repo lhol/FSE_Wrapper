@@ -30,7 +30,7 @@ FSE_API size_t fse_decompress(
 }
 
 JNIEXPORT jbyteArray JNICALL
-Java_com_karenta_fse_Fse_compressNative(
+Java_org_karenta_fse_Fse_compressNative(
     JNIEnv* env, jclass clazz, jbyteArray input)
 {
     (void)clazz;
@@ -51,18 +51,24 @@ Java_com_karenta_fse_Fse_compressNative(
         return (*env)->NewByteArray(env, 0);
     }
 
-    (*env)->ReleaseByteArrayElements(env, outArr, out, 0);
-
     if (cSize < bound) {
-        jbyteArray resized = (*env)->NewByteArray(env, cSize);
-        (*env)->SetByteArrayRegion(env, resized, 0, cSize, out);
+        /* Copy while out is still valid, then discard the oversized array */
+        jbyteArray resized = (*env)->NewByteArray(env, (jsize)cSize);
+        if (resized == NULL) {
+            (*env)->ReleaseByteArrayElements(env, outArr, out, JNI_ABORT);
+            return NULL;
+        }
+        (*env)->SetByteArrayRegion(env, resized, 0, (jsize)cSize, out);
+        (*env)->ReleaseByteArrayElements(env, outArr, out, JNI_ABORT);
         return resized;
     }
+
+    (*env)->ReleaseByteArrayElements(env, outArr, out, 0);
     return outArr;
 }
 
 JNIEXPORT jbyteArray JNICALL
-Java_com_karenta_fse_Fse_decompressNative(
+Java_org_karenta_fse_Fse_decompressNative(
     JNIEnv* env, jclass clazz, jbyteArray input, jint expectedSize)
 {
     (void)clazz;

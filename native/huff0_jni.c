@@ -82,24 +82,23 @@ Java_org_karenta_huff0_Huff0_compressNative(
     (*env)->ReleaseByteArrayElements(env, input, srcBytes, JNI_ABORT);
 
     if (cSize == 0) {
-        // Compression error: shrink to 0-length array
         (*env)->ReleaseByteArrayElements(env, outArray, outBytes, JNI_ABORT);
-        jbyteArray empty = (*env)->NewByteArray(env, 0);
-        return empty;
+        return (*env)->NewByteArray(env, 0);
     }
 
-    // Resize Java array to actual compressed size
-    (*env)->ReleaseByteArrayElements(env, outArray, outBytes, 0);
-
     if (cSize < (size_t)bound) {
+        /* Copy while outBytes is still valid, then discard the oversized array */
         jbyteArray resized = (*env)->NewByteArray(env, (jsize)cSize);
         if (resized == NULL) {
+            (*env)->ReleaseByteArrayElements(env, outArray, outBytes, JNI_ABORT);
             return NULL;
         }
         (*env)->SetByteArrayRegion(env, resized, 0, (jsize)cSize, outBytes);
+        (*env)->ReleaseByteArrayElements(env, outArray, outBytes, JNI_ABORT);
         return resized;
     }
 
+    (*env)->ReleaseByteArrayElements(env, outArray, outBytes, 0);
     return outArray;
 }
 

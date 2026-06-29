@@ -15,13 +15,16 @@ def parse_native(path):
         print(f"Warning: {path} not found, skipping native benchmarks")
         return results
     
-    with open(path, "r") as f:
-        for line in f:
-            m = re.match(r"(Huff0|FSE) compress:\s+([\d\.]+) MB/s", line)
-            if m:
-                codec = m.group(1)
-                mbps = float(m.group(2))
-                results[f"{codec}_native"] = mbps
+    try:
+        with open(path, "r") as f:
+            for line in f:
+                m = re.match(r"(Huff0|FSE) compress:\s+([\d\.]+) MB/s", line)
+                if m:
+                    codec = m.group(1)
+                    mbps = float(m.group(2))
+                    results[f"{codec}_native"] = mbps
+    except Exception as e:
+        print(f"Error parsing native benchmarks: {e}")
     return results
 
 def parse_jmh(path):
@@ -31,14 +34,19 @@ def parse_jmh(path):
         print(f"Warning: {path} not found, skipping Java benchmarks")
         return results
     
-    with open(path, "r") as f:
-        data = json.load(f)
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
 
-    for bench in data:
-        name = bench["benchmark"].split(".")[-1]
-        score = bench["primaryMetric"]["score"]  # ops/us
-        mbps = score * 1e6 / len("The quick brown fox jumps over the lazy dog")
-        results[f"{name}_java"] = mbps
+        test_data = "The quick brown fox jumps over the lazy dog".encode()
+        for bench in data:
+            name = bench["benchmark"].split(".")[-1]
+            score = bench["primaryMetric"]["score"]  # ops/us (throughput)
+            # Convert ops/us to MB/s: score * 1e6 us/s * len(data) bytes/op / (1024*1024) bytes/MB
+            mbps = (score * 1e6 * len(test_data)) / (1024 * 1024)
+            results[f"{name}_java"] = mbps
+    except Exception as e:
+        print(f"Error parsing JMH results: {e}")
     return results
 
 def parse_dotnet_huff0(path):
@@ -49,16 +57,23 @@ def parse_dotnet_huff0(path):
         print(f"Warning: {json_file} not found, skipping Huff0 .NET benchmarks")
         return results
     
-    with open(json_file, "r") as f:
-        data = json.load(f)
+    try:
+        with open(json_file, "r") as f:
+            data = json.load(f)
 
-    for bench in data.get("Benchmarks", []):
-        name = bench["DisplayInfo"]
-        # Mean is in nanoseconds
-        ns_per_op = bench["Statistics"]["Mean"]
-        if ns_per_op > 0:
-            mbps = (1e9 / ns_per_op) * len("The quick brown fox jumps over the lazy dog") / (1024*1024)
-            results[f"{name}_dotnet"] = mbps
+        test_data = "The quick brown fox jumps over the lazy dog".encode()
+        for bench in data.get("Benchmarks", []):
+            # Extract method name from DisplayInfo or MethodTitle
+            # DisplayInfo example: "Huff0Compress"
+            name = bench.get("DisplayInfo") or bench.get("MethodTitle", "Unknown")
+            # Mean is in nanoseconds
+            ns_per_op = bench.get("Statistics", {}).get("Mean")
+            if ns_per_op and ns_per_op > 0:
+                # Convert ns to seconds, data per op to MB/s
+                mbps = (1e9 / ns_per_op) * len(test_data) / (1024 * 1024)
+                results[f"{name}_dotnet"] = mbps
+    except Exception as e:
+        print(f"Error parsing Huff0 .NET results: {e}")
     return results
 
 def parse_dotnet_fse(path):
@@ -69,15 +84,20 @@ def parse_dotnet_fse(path):
         print(f"Warning: {json_file} not found, skipping Fse .NET benchmarks")
         return results
     
-    with open(json_file, "r") as f:
-        data = json.load(f)
+    try:
+        with open(json_file, "r") as f:
+            data = json.load(f)
 
-    for bench in data.get("Benchmarks", []):
-        name = bench["DisplayInfo"]
-        ns_per_op = bench["Statistics"]["Mean"]
-        if ns_per_op > 0:
-            mbps = (1e9 / ns_per_op) * len("The quick brown fox jumps over the lazy dog") / (1024*1024)
-            results[f"{name}_dotnet"] = mbps
+        test_data = "The quick brown fox jumps over the lazy dog".encode()
+        for bench in data.get("Benchmarks", []):
+            # Extract method name from DisplayInfo or MethodTitle
+            name = bench.get("DisplayInfo") or bench.get("MethodTitle", "Unknown")
+            ns_per_op = bench.get("Statistics", {}).get("Mean")
+            if ns_per_op and ns_per_op > 0:
+                mbps = (1e9 / ns_per_op) * len(test_data) / (1024 * 1024)
+                results[f"{name}_dotnet"] = mbps
+    except Exception as e:
+        print(f"Error parsing Fse .NET results: {e}")
     return results
 
 def load_history():
@@ -126,10 +146,37 @@ def main():
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     results = {}
-    results.update(parse_native(ROOT / "native_bench.txt"))
-    results.update(parse_jmh(ROOT / "jmh_results.json"))
-    results.update(parse_dotnet_huff0(ROOT / "csharp/Huff0.net/Benchmarks/artifacts"))
-    results.update(parse_dotnet_fse(ROOT / "csharp/Fse.net/Benchmarks/artifacts"))
+    
+    # Parse each source and report what was found
+    native_results = parse_native(ROOT / "native_bench.txt")
+    if native_results:
+        print(f"✓ Native benchmarks: {list(native_results.keys())}")
+    results.update(native_results)
+    
+    jmh_results = parse_jmh(ROOT / "jmh_results.json")
+    if jmh_results:
+        print(f"✓ Java benchmarks: {list(jmh_results.keys())}")
+    else:
+        print("⚠ No Java benchmarks found")
+    results.update(jmh_results)
+    
+    huff0_results = parse_dotnet_huff0(ROOT / "csharp/Huff0.net/Benchmarks/artifacts")
+    if huff0_results:
+        print(f"✓ Huff0 .NET benchmarks: {list(huff0_results.keys())}")
+    else:
+        print("⚠ No Huff0 .NET benchmarks found")
+    results.update(huff0_results)
+    
+    fse_results = parse_dotnet_fse(ROOT / "csharp/Fse.net/Benchmarks/artifacts")
+    if fse_results:
+        print(f"✓ Fse .NET benchmarks: {list(fse_results.keys())}")
+    else:
+        print("⚠ No Fse .NET benchmarks found")
+    results.update(fse_results)
+
+    if not results:
+        print("ERROR: No benchmark results were collected!")
+        return
 
     history = load_history()
     history.append({"timestamp": timestamp, **results})
@@ -137,7 +184,7 @@ def main():
 
     generate_markdown(timestamp, results, history)
 
-    print("Dashboard generated:", OUT)
+    print(f"✓ Dashboard generated: {OUT}")
 
 if __name__ == "__main__":
     main()

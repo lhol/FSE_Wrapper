@@ -102,7 +102,7 @@ jobs:
       - name: Download Linux native libs (for JNI tests)
         uses: actions/download-artifact@v5
         with:
-          name: native-linux-${{ github.ref_name }}
+          name: native-linux-x64-${{ github.ref_name }}
           path: native/build
       - name: Test
         run: ./mvnw -B clean test

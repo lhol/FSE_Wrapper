@@ -57,15 +57,15 @@ jobs:
       - name: Build & Test
         shell: bash
         run: |
-         if [ "${{ runner.os }}" = "Windows" ]; then
-           cmake -B native/build -S native ${{ matrix.cmake_arch }}
-           cmake --build native/build --config Release
-           cd native/build && ctest --output-on-failure -C Release || true
-         else
-           cmake -B native/build -S native ${{ matrix.cmake_arch }}
-           cmake --build native/build --config Release
-           cd native/build && ctest --output-on-failure -C Release || true
-         fi
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cmake -B native/build -S native ${{ matrix.cmake_arch }}
+            cmake --build native/build --config Release
+            cd native/build && ctest --output-on-failure -C Release || true
+          else
+            cmake -B native/build -S native ${{ matrix.cmake_arch }}
+            cmake --build native/build --config Release
+            cd native/build && ctest --output-on-failure -C Release || true
+          fi
       - name: Collect native libs
         shell: bash
         run: |

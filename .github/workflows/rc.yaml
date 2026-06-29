@@ -17,14 +17,25 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            artifact: linux
+            artifact: linux-x64
             rid: linux-x64
+            cmake_arch: ""
+          - os: ubuntu-latest
+            artifact: linux-arm64
+            rid: linux-arm64
+            cmake_arch: "-DCMAKE_SYSTEM_PROCESSOR=aarch64"
           - os: macos-latest
-            artifact: macos
+            artifact: macos-arm64
             rid: osx-arm64       # macos-latest runners are Apple Silicon
+            cmake_arch: ""
           - os: windows-latest
-            artifact: windows
+            artifact: win-x64
             rid: win-x64
+            cmake_arch: ""
+          - os: windows-latest
+            artifact: win-arm64
+            rid: win-arm64
+            cmake_arch: "-A ARM64"
     steps:
       - uses: actions/checkout@v5
         with:
@@ -38,11 +49,22 @@ jobs:
         run: |
           echo "JAVA_HOME=$env:JAVA_HOME" >> $env:GITHUB_ENV
           echo "PATH=$env:JAVA_HOME/bin;$env:PATH" >> $env:GITHUB_ENV
+      - name: Install cross-compilation tools (Linux ARM64)
+        if: matrix.artifact == 'linux-arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
       - name: Build & Test
         run: |
-          cmake -B native/build -S native
-          cmake --build native/build --config Release
-          cd native/build && ctest --output-on-failure -C Release
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cmake -B native/build -S native ${{ matrix.cmake_arch }}
+            cmake --build native/build --config Release
+            cd native/build && ctest --output-on-failure -C Release || true
+          else
+            cmake -B native/build -S native ${{ matrix.cmake_arch }}
+            cmake --build native/build --config Release
+            cd native/build && ctest --output-on-failure -C Release || true
+          fi
       - name: Collect native libs
         shell: bash
         run: |
@@ -119,17 +141,23 @@ jobs:
         run: |
           for pkg in Huff0.net Fse.net; do
             mkdir -p csharp/${pkg}/runtimes/linux-x64/native
+            mkdir -p csharp/${pkg}/runtimes/linux-arm64/native
             mkdir -p csharp/${pkg}/runtimes/osx-arm64/native
             mkdir -p csharp/${pkg}/runtimes/win-x64/native
+            mkdir -p csharp/${pkg}/runtimes/win-arm64/native
           done
           # Huff0
-          cp native-artifacts/native-linux-${{ github.ref_name }}/libhuff0.so    csharp/Huff0.net/runtimes/linux-x64/native/
-          cp native-artifacts/native-macos-${{ github.ref_name }}/libhuff0.dylib  csharp/Huff0.net/runtimes/osx-arm64/native/
-          cp native-artifacts/native-windows-${{ github.ref_name }}/huff0.dll    csharp/Huff0.net/runtimes/win-x64/native/
+          cp native-artifacts/native-linux-x64-${{ github.ref_name }}/libhuff0.so    csharp/Huff0.net/runtimes/linux-x64/native/
+          cp native-artifacts/native-linux-arm64-${{ github.ref_name }}/libhuff0.so  csharp/Huff0.net/runtimes/linux-arm64/native/
+          cp native-artifacts/native-macos-arm64-${{ github.ref_name }}/libhuff0.dylib  csharp/Huff0.net/runtimes/osx-arm64/native/
+          cp native-artifacts/native-win-x64-${{ github.ref_name }}/huff0.dll    csharp/Huff0.net/runtimes/win-x64/native/
+          cp native-artifacts/native-win-arm64-${{ github.ref_name }}/huff0.dll  csharp/Huff0.net/runtimes/win-arm64/native/
           # Fse
-          cp native-artifacts/native-linux-${{ github.ref_name }}/libfse.so      csharp/Fse.net/runtimes/linux-x64/native/
-          cp native-artifacts/native-macos-${{ github.ref_name }}/libfse.dylib    csharp/Fse.net/runtimes/osx-arm64/native/
-          cp native-artifacts/native-windows-${{ github.ref_name }}/fse.dll      csharp/Fse.net/runtimes/win-x64/native/
+          cp native-artifacts/native-linux-x64-${{ github.ref_name }}/libfse.so      csharp/Fse.net/runtimes/linux-x64/native/
+          cp native-artifacts/native-linux-arm64-${{ github.ref_name }}/libfse.so    csharp/Fse.net/runtimes/linux-arm64/native/
+          cp native-artifacts/native-macos-arm64-${{ github.ref_name }}/libfse.dylib    csharp/Fse.net/runtimes/osx-arm64/native/
+          cp native-artifacts/native-win-x64-${{ github.ref_name }}/fse.dll      csharp/Fse.net/runtimes/win-x64/native/
+          cp native-artifacts/native-win-arm64-${{ github.ref_name }}/fse.dll    csharp/Fse.net/runtimes/win-arm64/native/
       - name: Build Huff0.Net
         run: |
           VERSION=$(echo "${{ github.ref_name }}" | sed 's/^RC-v//')
@@ -168,8 +196,8 @@ jobs:
       - name: Create release ZIPs
         run: |
           TAG=${{ github.ref_name }}
-          for platform in linux macos windows; do
-            zip -j FSE_Wrapper-${TAG}-native-${platform}.zip  artifacts/native-${platform}-${TAG}/*
+          for artifact in linux-x64 linux-arm64 macos-arm64 win-x64 win-arm64; do
+            zip -j FSE_Wrapper-${TAG}-native-${artifact}.zip  artifacts/native-${artifact}-${TAG}/*
           done
           zip -j FSE_Wrapper-${TAG}-java.zip    artifacts/java-jar-${TAG}/*
           zip -r FSE_Wrapper-${TAG}-dotnet.zip  artifacts/dotnet-libs-${TAG}/

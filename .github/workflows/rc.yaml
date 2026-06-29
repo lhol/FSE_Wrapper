@@ -55,16 +55,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
       - name: Build & Test
-        run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            cmake -B native/build -S native ${{ matrix.cmake_arch }}
-            cmake --build native/build --config Release
-            cd native/build && ctest --output-on-failure -C Release || true
-          else
-            cmake -B native/build -S native ${{ matrix.cmake_arch }}
-            cmake --build native/build --config Release
-            cd native/build && ctest --output-on-failure -C Release || true
-          fi
+       shell: bash
+       run: |
+         if [ "${{ runner.os }}" = "Windows" ]; then
+           cmake -B native/build -S native ${{ matrix.cmake_arch }}
+           cmake --build native/build --config Release
+           cd native/build && ctest --output-on-failure -C Release || true
+         else
+           cmake -B native/build -S native ${{ matrix.cmake_arch }}
+           cmake --build native/build --config Release
+           cd native/build && ctest --output-on-failure -C Release || true
+         fi
       - name: Collect native libs
         shell: bash
         run: |

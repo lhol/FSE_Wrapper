@@ -27,7 +27,7 @@ Both algorithms are used internally by Zstandard (zstd). This library makes them
 | Tool | Version | Required for |
 |---|---|---|
 | CMake | 3.10+ | native build |
-| JDK | 21+ | native JNI headers + Java build |
+| JDK | 22+ | native JNI headers + Java build (FFM API finalized in Java 22) |
 | .NET SDK | 8.0+ | .NET build |
 | Maven | 3.9+ | Java build (or use included `mvnw`) |
 | MSVC / GCC / Clang | any modern | native C compiler |

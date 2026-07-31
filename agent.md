@@ -20,7 +20,7 @@ The repository builds native shared libraries (`.dll`, `.so`, `.dylib`) and thin
    Java APIs for Huff0 and FSE using JNI. Bundles native libraries into the JAR.
 
 3. **java-panama/**  
-   Alternative Java 21+ API using the Panama Foreign Function & Memory API. Same native libraries, no JNI glue required. Requires `--enable-native-access=ALL-UNNAMED` JVM flag.
+   Alternative Java 22+ API using the Panama Foreign Function & Memory API (finalized in Java 22 via JEP 454). Same native libraries, no JNI glue required. Requires `--enable-native-access=ALL-UNNAMED` JVM flag.
 
 4. **csharp/**  
    .NET libraries and benchmarks. Uses P/Invoke and bundles native libraries in NuGet packages under `runtimes/{rid}/native/`.

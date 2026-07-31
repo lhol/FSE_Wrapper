@@ -12,15 +12,15 @@ public final class Huff0Panama {
         System.loadLibrary("huff0");
         LOOKUP = SymbolLookup.loaderLookup();
         MH_BOUND = LINKER.downcallHandle(
-                LOOKUP.find("huff0_compress_bound").get(),
+                LOOKUP.find("huff0_compress_bound").orElseThrow(),
                 FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG));
         MH_COMPRESS = LINKER.downcallHandle(
-                LOOKUP.find("huff0_compress").get(),
+                LOOKUP.find("huff0_compress").orElseThrow(),
                 FunctionDescriptor.of(ValueLayout.JAVA_LONG,
                         ValueLayout.ADDRESS, ValueLayout.JAVA_LONG,
                         ValueLayout.ADDRESS, ValueLayout.JAVA_LONG));
         MH_DECOMPRESS = LINKER.downcallHandle(
-                LOOKUP.find("huff0_decompress").get(),
+                LOOKUP.find("huff0_decompress").orElseThrow(),
                 FunctionDescriptor.of(ValueLayout.JAVA_LONG,
                         ValueLayout.ADDRESS, ValueLayout.JAVA_LONG,
                         ValueLayout.ADDRESS, ValueLayout.JAVA_LONG));
@@ -31,24 +31,23 @@ public final class Huff0Panama {
     public static byte[] compress(byte[] input) throws Throwable {
         long bound = (long) MH_BOUND.invoke((long) input.length);
         try (Arena arena = Arena.ofConfined()) {
-            MemorySegment src = arena.allocateArray(ValueLayout.JAVA_BYTE, input);
+            MemorySegment src = arena.allocate(input.length);
+            src.copyFrom(MemorySegment.ofArray(input));
             MemorySegment dst = arena.allocate(bound);
             long cSize = (long) MH_COMPRESS.invoke(src, (long) input.length, dst, bound);
-            byte[] out = new byte[(int) cSize];
-            dst.asSlice(0, cSize).copyTo(MemorySegment.ofArray(out));
-            return out;
+            return dst.asSlice(0, cSize).toArray(ValueLayout.JAVA_BYTE);
         }
     }
 
     public static byte[] decompress(byte[] compressed, int expectedSize) throws Throwable {
         try (Arena arena = Arena.ofConfined()) {
-            MemorySegment src = arena.allocateArray(ValueLayout.JAVA_BYTE, compressed);
+            MemorySegment src = arena.allocate(compressed.length);
+            src.copyFrom(MemorySegment.ofArray(compressed));
             MemorySegment dst = arena.allocate(expectedSize);
             long dSize = (long) MH_DECOMPRESS.invoke(src, (long) compressed.length, dst, (long) expectedSize);
-            if (dSize != expectedSize) throw new IllegalStateException("Huff0 decompression failed");
-            byte[] out = new byte[expectedSize];
-            dst.asSlice(0, expectedSize).copyTo(MemorySegment.ofArray(out));
-            return out;
+            if (dSize != expectedSize) throw new IllegalStateException("Huff0 decompression failed, got " + dSize);
+            return dst.asSlice(0, expectedSize).toArray(ValueLayout.JAVA_BYTE);
         }
     }
 }
+

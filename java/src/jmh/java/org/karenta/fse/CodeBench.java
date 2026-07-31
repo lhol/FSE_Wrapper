@@ -2,22 +2,52 @@ package org.karenta.fse;
 
 import org.openjdk.jmh.annotations.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 @BenchmarkMode(Mode.Throughput)
-@OutputTimeUnit(TimeUnit.MICROSECONDS)
+@OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
+@Warmup(iterations = 2, time = 1)
+@Measurement(iterations = 3, time = 1)
+@Fork(value = 1, jvmArgsPrepend = "--enable-native-access=ALL-UNNAMED")
 public class CodeBench {
+
+    @Param({"512", "1024", "4096", "16384", "65536", "262144", "1048576", "4194304", "16777216"})
+    public int size;
+
+    @Param({"LOW_ENTROPY", "MEDIUM_ENTROPY"})
+    public String dataType;
 
     private byte[] data;
 
+    private static final String LOREM =
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor " +
+        "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud " +
+        "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure " +
+        "dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. " +
+        "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt " +
+        "mollit anim id est laborum. ";
+
     @Setup
     public void setup() {
-        data = "The quick brown fox jumps over the lazy dog".getBytes();
+        data = new byte[size];
+        if ("LOW_ENTROPY".equals(dataType)) {
+            for (int i = 0; i < size; i++) data[i] = (byte)(i % 32);
+        } else {
+            byte[] src = LOREM.getBytes(StandardCharsets.UTF_8);
+            for (int i = 0; i < size; i++) data[i] = src[i % src.length];
+        }
     }
 
     @Benchmark
-    public byte[] fseCompress() {
+    public byte[] fseCompressJNI() {
         return Fse.compress(data);
     }
+
+    @Benchmark
+    public byte[] fseCompressPanama() throws Throwable {
+        return FsePanama.compress(data);
+    }
 }
+

@@ -2,8 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.karenta</groupId>
   <artifactId>FSE_Wrapper</artifactId>
-  <version>1.0.0</version>
-  <!-- ... usual groupId/artifactId/version ... -->
+  <version>0.0.15</version>
 
   <dependencies>
     <dependency>
@@ -30,7 +29,7 @@
     <testSourceDirectory>java/src/test/java</testSourceDirectory>
 
     <plugins>
-      <!-- Add jmh source directory to compilation -->
+      <!-- Add jmh + Panama source directories to compilation -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
@@ -44,6 +43,7 @@
             <configuration>
               <sources>
                 <source>java/src/jmh/java</source>
+                <source>java-panama/src/main/java</source>
               </sources>
             </configuration>
           </execution>
@@ -54,8 +54,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.11.0</version>
         <configuration>
-          <source>11</source>
-          <target>11</target>
+          <source>21</source>
+          <target>21</target>
         </configuration>
       </plugin>
 
@@ -64,7 +64,10 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.1.2</version>
         <configuration>
-          <argLine>-Djava.library.path=${project.basedir}/native/build${path.separator}${project.basedir}/native/build/Release</argLine>
+          <argLine>
+            -Djava.library.path=${project.basedir}/native/build${path.separator}${project.basedir}/native/build/Release
+            --enable-native-access=ALL-UNNAMED
+          </argLine>
         </configuration>
       </plugin>
 

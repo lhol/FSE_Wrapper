@@ -17,7 +17,8 @@ Both algorithms are used internally by Zstandard (zstd). This library makes them
 |---|---|---|
 | Native shared libraries | `huff0.dll` / `libhuff0.so` / `.dylib` | C |
 | Native shared libraries | `fse.dll` / `libfse.so` / `.dylib` | C |
-| Java API | `org.karenta:FSE_Wrapper` | Java / JNI |
+| Java API (JNI) | `org.karenta.huff0.Huff0` / `org.karenta.fse.Fse` | Java / JNI |
+| Java API (Panama FFI) | `org.karenta.huff0.Huff0Panama` / `org.karenta.fse.FsePanama` | Java 21+ / Panama |
 | .NET Huff0 library | `Huff0.Net` (NuGet) | C# / P/Invoke |
 | .NET FSE library | `Fse.Net` (NuGet) | C# / P/Invoke |
 
@@ -54,7 +55,7 @@ The NuGet packages bundle the correct native library for your platform automatic
 
 ## Usage
 
-### Java — Huff0
+### Java — Huff0 (JNI)
 ```java
 import org.karenta.huff0.Huff0;
 
@@ -63,13 +64,33 @@ byte[] compressed = Huff0.compress(input);
 byte[] restored   = Huff0.decompress(compressed, input.length);
 ```
 
-### Java — FSE
+### Java — Huff0 (Panama FFI, Java 21+)
+```java
+import org.karenta.huff0.Huff0Panama;
+
+// Requires JVM flag: --enable-native-access=ALL-UNNAMED
+byte[] input      = "Hello, world!".getBytes(StandardCharsets.UTF_8);
+byte[] compressed = Huff0Panama.compress(input);
+byte[] restored   = Huff0Panama.decompress(compressed, input.length);
+```
+
+### Java — FSE (JNI)
 ```java
 import org.karenta.fse.Fse;
 
 byte[] input      = "Hello, world!".getBytes(StandardCharsets.UTF_8);
 byte[] compressed = Fse.compress(input);
 byte[] restored   = Fse.decompress(compressed, input.length);
+```
+
+### Java — FSE (Panama FFI, Java 21+)
+```java
+import org.karenta.fse.FsePanama;
+
+// Requires JVM flag: --enable-native-access=ALL-UNNAMED
+byte[] input      = "Hello, world!".getBytes(StandardCharsets.UTF_8);
+byte[] compressed = FsePanama.compress(input);
+byte[] restored   = FsePanama.decompress(compressed, input.length);
 ```
 
 ### C# — Huff0
@@ -163,43 +184,39 @@ dotnet build csharp/Fse.net/src/Fse.Net.csproj    -c Release
 └──────────────────────────────────────────────────────────┘
 ```
 
-### Alternative: Java 21+ Panama FFI
+### Alternative: Java 21+ Panama FFI (available now)
 
-Java 21+ introduces **Project Panama** (Foreign Function & Memory API) as a modern replacement for JNI. Unlike JNI, Panama provides:
+This project **includes a working Panama FFI implementation** in `java-panama/src/main/java/` alongside the JNI bindings. Panama uses Java's native Foreign Function & Memory API — no C glue code is required.
 
-- **Simpler binding generation** — no C glue code needed; bindings are generated from C headers
-- **Better performance** — fewer layers of indirection
-- **Type safety** — compile-time verification of FFI calls
-- **Safer memory management** — structured concurrency and memory scopes
-
-Example using Panama (hypothetical future alternative):
-
-```java
-import java.lang.foreign.*;
-
-// Generated from FSE C headers via jextract
-import org.karenta.fse.RuntimeHelper;
-import org.karenta.fse.fse_compress_h;
-
-byte[] input = "Hello, world!".getBytes();
-Arena arena = Arena.ofConfined();
-
-try (MemorySession session = MemorySession.openConfined()) {
-    MemorySegment inputSegment = session.allocateArray(ValueLayout.JAVA_BYTE, input);
-    MemorySegment outputSegment = session.allocate(
-        ValueLayout.JAVA_LONG.byteSize() + input.length * 2
-    );
-    
-    long compressedSize = fse_compress_h.FSE_compress(
-        inputSegment, input.length,
-        outputSegment, outputSegment.byteSize()
-    ).get(ValueLayout.JAVA_LONG, 0);
-}
+```
+┌──────────────────────────────────────────────────────────┐
+│  Java 21+ application code                               │
+├──────────────────────────────────────────────────────────┤
+│  Panama API                                              │
+│  org.karenta.huff0.Huff0Panama                           │
+│  org.karenta.fse.FsePanama                               │
+│  (java.lang.foreign.Linker — no JNI glue needed)         │
+├──────────────────────────────────────────────────────────┤
+│  Same native shared libraries as JNI path                │
+│  huff0.dll / libhuff0.so / libhuff0.dylib                │
+│  fse.dll   / libfse.so   / libfse.dylib                  │
+├──────────────────────────────────────────────────────────┤
+│  FiniteStateEntropy (git submodule, BSD-2-Clause)        │
+└──────────────────────────────────────────────────────────┘
 ```
 
-Currently, this project uses **JNI** for maximum compatibility across Java versions. Porting to Panama is a future enhancement once Panama API reaches stable/finalization status.
+**Panama API example:**
+```java
+import org.karenta.huff0.Huff0Panama;
 
-See [Project Panama](https://openjdk.org/projects/panama/) and [Foreign Function & Memory API](https://docs.oracle.com/javase/21/docs/api/java.base/java/lang/foreign/package-summary.html) for details.
+// Add JVM flag: --enable-native-access=ALL-UNNAMED
+byte[] compressed = Huff0Panama.compress(data);
+byte[] restored   = Huff0Panama.decompress(compressed, data.length);
+```
+
+Panama bindings are compiled and tested in CI alongside JNI. Choose JNI for Java 11+ compatibility; choose Panama for Java 21+ with potentially lower per-call overhead.
+
+See [Foreign Function & Memory API (Java 21)](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/foreign/package-summary.html) for details.
 
 ## Release workflow
 

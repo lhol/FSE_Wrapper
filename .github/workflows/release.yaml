@@ -116,11 +116,14 @@ jobs:
           pattern: native-*-${{ github.ref_name }}
           merge-multiple: true
           path: native/build
-      - name: Package shaded JAR
-        run: ./mvnw -B package -DskipTests
+      - name: Package shaded JAR with release version
+        run: |
+          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          ./mvnw versions:set -DnewVersion=${VERSION} -DgenerateBackupPoms=false
+          ./mvnw -B package -DskipTests
       - name: Find shaded JAR
         id: jar
-        run: echo "path=$(ls target/FSE_Wrapper-*.jar | grep -v original)" >> $GITHUB_OUTPUT
+        run: echo "path=$(ls target/FSE_Wrapper-*.jar | grep -v original | head -1)" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v5
         with:
           name: java-jar-${{ github.ref_name }}
@@ -301,7 +304,7 @@ jobs:
         run: |
           ./mvnw -B package -DskipTests
           JAR=$(ls target/FSE_Wrapper-*.jar | grep -v original | head -1)
-          java -jar "$JAR" -rf json -rff jmh_results.json -wi 3 -i 5
+          java --enable-native-access=ALL-UNNAMED -jar "$JAR" -rf json -rff jmh_results.json -wi 3 -i 5
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
@@ -310,13 +313,13 @@ jobs:
           LD_LIBRARY_PATH: ${{ github.workspace }}/native/build
         run: |
           dotnet run -c Release --project csharp/Huff0.net/Benchmarks/Benchmarks.csproj \
-            -- --exporters json --artifacts csharp/Huff0.net/Benchmarks/artifacts
+            -- --job short --exporters json --artifacts csharp/Huff0.net/Benchmarks/artifacts
       - name: .NET Fse benchmark
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/native/build
         run: |
           dotnet run -c Release --project csharp/Fse.net/Benchmarks/Benchmarks.csproj \
-            -- --exporters json --artifacts csharp/Fse.net/Benchmarks/artifacts
+            -- --job short --exporters json --artifacts csharp/Fse.net/Benchmarks/artifacts
       - name: Generate dashboard
         run: python3 scripts/generate_dashboard.py
       - name: Upload benchmark results to GitHub Release

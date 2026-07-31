@@ -12,3 +12,4 @@
 target/
 native/build/**
 dependency-reduced-pom.xml
+java-panama/native/

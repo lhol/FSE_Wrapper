@@ -294,6 +294,7 @@ jobs:
     environment: release
     permissions:
       packages: write  # required for GitHub Packages push
+      id-token: write  # must be set at job level (overrides workflow default)
     steps:
       - uses: actions/setup-dotnet@v5
         with:
@@ -302,10 +303,15 @@ jobs:
         with:
           name: nuget-packages-${{ github.ref_name }}
           path: nuget-out
+      - name: Authenticate with nuget.org (OIDC → short-lived API key)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: lhol
       - name: Push packages to nuget.org
         run: |
           dotnet nuget push nuget-out/*.nupkg \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
       - name: Push packages to GitHub Packages

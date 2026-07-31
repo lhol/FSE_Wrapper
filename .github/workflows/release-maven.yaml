@@ -1,5 +1,6 @@
 name: Publish to Maven Central
 
+# Triggered by a vX.Y.Z release tag. Runs AFTER the main release workflow.
 on:
   push:
     tags:
@@ -10,9 +11,6 @@ permissions:
   contents: read
 
 jobs:
-  # ─────────────────────────────────────────────────────────────────────────────
-  # Sign and deploy both JARs to OSSRH (Sonatype Maven Central)
-  # ─────────────────────────────────────────────────────────────────────────────
   maven-publish:
     runs-on: ubuntu-latest
     environment: release
@@ -21,24 +19,26 @@ jobs:
         with:
           submodules: recursive
 
+      # setup-java writes ~/.m2/settings.xml with a <server id="central"> block
+      # populated from the env vars below, and imports the GPG key.
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '22'
           cache: maven
-          # Configures ~/.m2/settings.xml with the ossrh server credentials
-          server-id: ossrh
-          server-username: MAVEN_USERNAME
-          server-password: MAVEN_PASSWORD
+          server-id: central
+          server-username: CENTRAL_TOKEN_USERNAME
+          server-password: CENTRAL_TOKEN_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
-      - name: Download linux-x64 native libs (for JNI compilation/javadoc)
+      # Download linux-x64 native libs so javadoc can resolve JNI native methods
+      - name: Download linux-x64 native libs
         uses: actions/download-artifact@v4
         with:
           name: native-linux-x64-${{ github.ref_name }}
           path: native/build
-        continue-on-error: true   # artifact may not exist if run standalone
+        continue-on-error: true   # safe to proceed if artifact not present
 
       - name: Set version from tag
         run: |
@@ -48,44 +48,57 @@ jobs:
 
       - name: Deploy JNI JAR to Maven Central
         env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          ./mvnw -B clean deploy \
-            -DskipTests \
+          ./mvnw -B clean deploy -DskipTests \
             -Dgpg.passphrase="${{ secrets.GPG_PASSPHRASE }}"
 
       - name: Deploy Panama JAR to Maven Central
         env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          ./mvnw -f java-panama/pom.xml -B clean deploy \
-            -DskipTests \
+          ./mvnw -f java-panama/pom.xml -B clean deploy -DskipTests \
             -Dgpg.passphrase="${{ secrets.GPG_PASSPHRASE }}"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SETUP INSTRUCTIONS (one-time, done by the repository owner)
+# ONE-TIME SETUP (done by the repository owner — OSSRH is EOL since 2025-06-30)
+# Use the new Central Publisher Portal at https://central.sonatype.com/
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# 1. Create an OSSRH account at https://central.sonatype.com/
-#    and claim the namespace org.karenta
+# STEP 1 — Create / log in to the Central Publisher Portal
+#   → https://central.sonatype.com/  (GitHub login supported)
+#   → If you had an OSSRH account, use the same credentials — namespaces were migrated.
 #
-# 2. Generate a GPG key pair:
-#      gpg --gen-key
-#      gpg --list-secret-keys --keyid-format=long
-#      gpg --armor --export-secret-keys <KEY_ID> | pbcopy
+# STEP 2 — Claim the namespace org.karenta  (if not already done)
+#   → Central Portal → My Namespaces → Add Namespace → org.karenta
+#   → Verification is usually via a DNS TXT record or a GitHub repository link.
 #
-# 3. Upload the public key to a keyserver:
-#      gpg --keyserver keyserver.ubuntu.com --send-keys <KEY_ID>
+# STEP 3 — Generate a User Token
+#   → Central Portal → Account (top-right) → User Token
+#      https://central.sonatype.com/usertoken
+#   → Click "Generate User Token", give it a name and expiry
+#   → Save the "Username" and "Password" shown — they cannot be retrieved again
 #
-# 4. Add the following GitHub repository secrets:
-#      OSSRH_USERNAME    — your Sonatype account username (or user token)
-#      OSSRH_TOKEN       — your Sonatype account password (or user token)
-#      GPG_PRIVATE_KEY   — the armored private key (from step 2)
-#      GPG_PASSPHRASE    — the passphrase used when generating the key
+# STEP 4 — Add GitHub repository secrets (Settings → Secrets → Actions):
+#   CENTRAL_TOKEN_USERNAME  ← the token "Username" from Step 3
+#   CENTRAL_TOKEN_PASSWORD  ← the token "Password" from Step 3
+#   GPG_PRIVATE_KEY         ← armored private GPG key (see Step 5)
+#   GPG_PASSPHRASE          ← passphrase for the GPG key
 #
-# 5. Create a GitHub environment named "release" (Settings → Environments)
-#    and optionally require manual approval before deployment
+# STEP 5 — Generate a GPG key (if you don't have one)
+#   gpg --full-gen-key           # choose RSA 4096, set a passphrase
+#   gpg --list-secret-keys --keyid-format=long
+#   gpg --armor --export-secret-keys <KEY_ID>   # paste into CENTRAL_GPG_PRIVATE_KEY secret
+#   gpg --keyserver keyserver.ubuntu.com --send-keys <KEY_ID>  # publish public key
+#
+# STEP 6 — Create a GitHub Environment named "release"
+#   → Settings → Environments → New environment → "release"
+#   → Optionally add required reviewers for manual approval
+#
+# After these steps, every vX.Y.Z tag will:
+#   1. Run the main release.yaml  (native builds, NuGet, GitHub Release)
+#   2. Run this workflow           (Maven Central publishing)

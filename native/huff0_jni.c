@@ -47,7 +47,7 @@ HUFF0_API size_t huff0_compress_bound(size_t srcSize)
 // ---- JNI wrappers for Java ----
 
 JNIEXPORT jbyteArray JNICALL
-Java_org_karenta_huff0_Huff0_compressNative(
+Java_io_github_lhol_huff0_Huff0_compressNative(
     JNIEnv* env, jclass clazz, jbyteArray input)
 {
     (void)clazz;
@@ -103,7 +103,7 @@ Java_org_karenta_huff0_Huff0_compressNative(
 }
 
 JNIEXPORT jbyteArray JNICALL
-Java_org_karenta_huff0_Huff0_decompressNative(
+Java_io_github_lhol_huff0_Huff0_decompressNative(
     JNIEnv* env, jclass clazz, jbyteArray input, jint expectedDecompressedSize)
 {
     (void)clazz;

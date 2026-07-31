@@ -17,8 +17,8 @@ Both algorithms are used internally by Zstandard (zstd). This library makes them
 |---|---|---|
 | Native shared libraries | `huff0.dll` / `libhuff0.so` / `.dylib` | C |
 | Native shared libraries | `fse.dll` / `libfse.so` / `.dylib` | C |
-| Java API (JNI) | `org.karenta.huff0.Huff0` / `org.karenta.fse.Fse` | Java / JNI |
-| Java API (Panama FFI) | `org.karenta.huff0.Huff0Panama` / `org.karenta.fse.FsePanama` | Java 21+ / Panama |
+| Java API (JNI) | `io.github.lhol.huff0.Huff0` / `io.github.lhol.fse.Fse` | Java / JNI |
+| Java API (Panama FFI) | `io.github.lhol.huff0.Huff0Panama` / `io.github.lhol.fse.FsePanama` | Java 21+ / Panama |
 | .NET Huff0 library | `Huff0.Net` (NuGet) | C# / P/Invoke |
 | .NET FSE library | `Fse.Net` (NuGet) | C# / P/Invoke |
 
@@ -39,7 +39,7 @@ Both algorithms are used internally by Zstandard (zstd). This library makes them
 ### Java (Maven)
 ```xml
 <dependency>
-  <groupId>org.karenta</groupId>
+  <groupId>io.github.lhol</groupId>
   <artifactId>FSE_Wrapper</artifactId>
   <version>1.0.0</version>
 </dependency>
@@ -57,7 +57,7 @@ The NuGet packages bundle the correct native library for your platform automatic
 
 ### Java — Huff0 (JNI)
 ```java
-import org.karenta.huff0.Huff0;
+import io.github.lhol.huff0.Huff0;
 
 byte[] input      = "Hello, world!".getBytes(StandardCharsets.UTF_8);
 byte[] compressed = Huff0.compress(input);
@@ -66,7 +66,7 @@ byte[] restored   = Huff0.decompress(compressed, input.length);
 
 ### Java — Huff0 (Panama FFI, Java 21+)
 ```java
-import org.karenta.huff0.Huff0Panama;
+import io.github.lhol.huff0.Huff0Panama;
 
 // Requires JVM flag: --enable-native-access=ALL-UNNAMED
 byte[] input      = "Hello, world!".getBytes(StandardCharsets.UTF_8);
@@ -76,7 +76,7 @@ byte[] restored   = Huff0Panama.decompress(compressed, input.length);
 
 ### Java — FSE (JNI)
 ```java
-import org.karenta.fse.Fse;
+import io.github.lhol.fse.Fse;
 
 byte[] input      = "Hello, world!".getBytes(StandardCharsets.UTF_8);
 byte[] compressed = Fse.compress(input);
@@ -85,7 +85,7 @@ byte[] restored   = Fse.decompress(compressed, input.length);
 
 ### Java — FSE (Panama FFI, Java 21+)
 ```java
-import org.karenta.fse.FsePanama;
+import io.github.lhol.fse.FsePanama;
 
 // Requires JVM flag: --enable-native-access=ALL-UNNAMED
 byte[] input      = "Hello, world!".getBytes(StandardCharsets.UTF_8);
@@ -171,8 +171,8 @@ dotnet build csharp/Fse.net/src/Fse.Net.csproj    -c Release
 │  Java / .NET application code                            │
 ├─────────────────────────┬────────────────────────────────┤
 │  Java API               │  .NET API                      │
-│  org.karenta.huff0.*    │  Huff0.Net / Fse.Net           │
-│  org.karenta.fse.*      │  (P/Invoke: [DllImport("huff0")]│
+│  io.github.lhol.huff0.*    │  Huff0.Net / Fse.Net           │
+│  io.github.lhol.fse.*      │  (P/Invoke: [DllImport("huff0")]│
 │  (JNI: loadLibrary)     │             [DllImport("fse")] │
 ├─────────────────────────┴────────────────────────────────┤
 │  Native shared libraries                                 │
@@ -193,8 +193,8 @@ This project **includes a working Panama FFI implementation** in `java-panama/sr
 │  Java 21+ application code                               │
 ├──────────────────────────────────────────────────────────┤
 │  Panama API                                              │
-│  org.karenta.huff0.Huff0Panama                           │
-│  org.karenta.fse.FsePanama                               │
+│  io.github.lhol.huff0.Huff0Panama                           │
+│  io.github.lhol.fse.FsePanama                               │
 │  (java.lang.foreign.Linker — no JNI glue needed)         │
 ├──────────────────────────────────────────────────────────┤
 │  Same native shared libraries as JNI path                │
@@ -207,7 +207,7 @@ This project **includes a working Panama FFI implementation** in `java-panama/sr
 
 **Panama API example:**
 ```java
-import org.karenta.huff0.Huff0Panama;
+import io.github.lhol.huff0.Huff0Panama;
 
 // Add JVM flag: --enable-native-access=ALL-UNNAMED
 byte[] compressed = Huff0Panama.compress(data);

@@ -90,7 +90,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Native C wrappers for Huff0 and FSE (FiniteStateEntropy submodule)
-- Java JNI bindings (`org.karenta.huff0.Huff0`, `org.karenta.fse.Fse`)
+- Java JNI bindings (`io.github.lhol.huff0.Huff0`, `io.github.lhol.fse.Fse`)
 - .NET P/Invoke bindings (`Huff0.Net`, `Fse.Net`)
 - CMake build for native shared libraries
 - Basic JUnit 5 tests for JNI roundtrip

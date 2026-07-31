@@ -30,7 +30,7 @@ FSE_API size_t fse_decompress(
 }
 
 JNIEXPORT jbyteArray JNICALL
-Java_org_karenta_fse_Fse_compressNative(
+Java_io_github_lhol_fse_Fse_compressNative(
     JNIEnv* env, jclass clazz, jbyteArray input)
 {
     (void)clazz;
@@ -68,7 +68,7 @@ Java_org_karenta_fse_Fse_compressNative(
 }
 
 JNIEXPORT jbyteArray JNICALL
-Java_org_karenta_fse_Fse_decompressNative(
+Java_io_github_lhol_fse_Fse_decompressNative(
     JNIEnv* env, jclass clazz, jbyteArray input, jint expectedSize)
 {
     (void)clazz;

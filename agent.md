@@ -38,16 +38,16 @@ FSE_Wrapper/
 │
 ├── java/
 │   └── src/
-│       ├── main/java/org/karenta/huff0/Huff0.java       # JNI binding
-│       ├── main/java/org/karenta/fse/Fse.java            # JNI binding
-│       ├── test/java/org/karenta/*/CodecTests.java       # JUnit roundtrip tests
-│       ├── test/java/org/karenta/*/PanamaTests.java      # Panama roundtrip tests
-│       └── jmh/java/org/karenta/*/CodeBench.java        # JMH benchmarks (JNI + Panama)
+│       ├── main/java/io/github/lhol/huff0/Huff0.java       # JNI binding
+│       ├── main/java/io/github/lhol/fse/Fse.java            # JNI binding
+│       ├── test/java/io/github/lhol/*/CodecTests.java       # JUnit roundtrip tests
+│       ├── test/java/io/github/lhol/*/PanamaTests.java      # Panama roundtrip tests
+│       └── jmh/java/io/github/lhol/*/CodeBench.java        # JMH benchmarks (JNI + Panama)
 │
 ├── java-panama/
 │   └── src/main/java/
-│       ├── org/karenta/huff0/Huff0Panama.java            # Panama FFI binding
-│       └── org/karenta/fse/FsePanama.java                # Panama FFI binding
+│       ├── io/github/lhol/huff0/Huff0Panama.java            # Panama FFI binding
+│       └── io/github/lhol/fse/FsePanama.java                # Panama FFI binding
 │
 ├── csharp/
 │   ├── Huff0.net/

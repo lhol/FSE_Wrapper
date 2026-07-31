@@ -73,8 +73,8 @@ jobs:
 #   → https://central.sonatype.com/  (GitHub login supported)
 #   → If you had an OSSRH account, use the same credentials — namespaces were migrated.
 #
-# STEP 2 — Claim the namespace org.karenta  (if not already done)
-#   → Central Portal → My Namespaces → Add Namespace → org.karenta
+# STEP 2 — Claim the namespace io.github.lhol  (if not already done)
+#   → Central Portal → My Namespaces → Add Namespace → io.github.lhol
 #   → Verification is usually via a DNS TXT record or a GitHub repository link.
 #
 # STEP 3 — Generate a User Token

@@ -1,6 +1,6 @@
 <project>
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.karenta</groupId>
+  <groupId>io.github.lhol</groupId>
   <artifactId>FSE_Wrapper-panama</artifactId>
   <version>0.0.16</version>
   <name>FSE_Wrapper-panama</name>

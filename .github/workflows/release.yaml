@@ -89,9 +89,9 @@ jobs:
           path: dist/
 
   # ---------------------------------------------------------------------------
-  # Build + test Java, package a multi-platform shaded JAR
+  # Build + test Java JNI, package shaded JAR
   # ---------------------------------------------------------------------------
-  java:
+  java-jni:
     needs: native
     runs-on: ubuntu-latest
     steps:
@@ -103,12 +103,12 @@ jobs:
           distribution: temurin
           java-version: '22'
           cache: maven
-      - name: Download Linux native libs (for JNI tests)
+      - name: Download linux-x64 native libs (for JNI tests)
         uses: actions/download-artifact@v4
         with:
           name: native-linux-x64-${{ github.ref_name }}
           path: native/build
-      - name: Test
+      - name: Test JNI
         run: ./mvnw -B clean test
       - name: Download all native libs (for multi-platform JAR)
         uses: actions/download-artifact@v4
@@ -126,8 +126,44 @@ jobs:
         run: echo "path=$(ls target/FSE_Wrapper-*.jar | grep -v original | head -1)" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v4
         with:
-          name: java-jar-${{ github.ref_name }}
+          name: java-jni-jar-${{ github.ref_name }}
           path: ${{ steps.jar.outputs.path }}
+
+  # ---------------------------------------------------------------------------
+  # Build + test Java Panama FFI (Java 22+), package separate JAR
+  # ---------------------------------------------------------------------------
+  java-panama:
+    needs: native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '22'
+          cache: maven
+      - name: Download linux-x64 native libs
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-x64-${{ github.ref_name }}
+          path: native/build
+      - name: Test Panama FFI
+        run: ./mvnw -f java-panama/pom.xml -B clean test
+      - name: Package Panama JAR
+        run: |
+          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          ./mvnw -f java-panama/pom.xml versions:set -DnewVersion=${VERSION} -DgenerateBackupPoms=false
+          ./mvnw -f java-panama/pom.xml -B package -DskipTests
+      - name: Find Panama JAR
+        id: jar
+        run: echo "path=$(ls java-panama/target/FSE_Wrapper-panama-*.jar | head -1)" >> $GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: java-panama-jar-${{ github.ref_name }}
+          path: ${{ steps.jar.outputs.path }}
+
 
   # ---------------------------------------------------------------------------
   # Build .NET libs and create NuGet packages with all platform native libs
@@ -194,7 +230,7 @@ jobs:
   # Bundle per-platform ZIPs (filenames include the version tag)
   # ---------------------------------------------------------------------------
   package:
-    needs: [native, java, dotnet]
+    needs: [native, java-jni, java-panama, dotnet]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -204,12 +240,13 @@ jobs:
       - name: Create release ZIPs
         run: |
           TAG=${{ github.ref_name }}
-          for artifact in linux-x64 linux-arm64 macos-arm64 win-x64 win-arm64; do
-            zip -j FSE_Wrapper-${TAG}-native-${artifact}.zip  artifacts/native-${artifact}-${TAG}/*
+          for plat in linux-x64 linux-arm64 macos-arm64 win-x64 win-arm64; do
+            zip -j FSE_Wrapper-${TAG}-native-${plat}.zip artifacts/native-${plat}-${TAG}/*
           done
-          zip -j FSE_Wrapper-${TAG}-java.zip    artifacts/java-jar-${TAG}/*
-          zip -r FSE_Wrapper-${TAG}-dotnet.zip  artifacts/dotnet-libs-${TAG}/
-          zip -j FSE_Wrapper-${TAG}-nuget.zip   artifacts/nuget-packages-${TAG}/*
+          zip -j FSE_Wrapper-${TAG}-java-jni.zip    artifacts/java-jni-jar-${TAG}/*
+          zip -j FSE_Wrapper-${TAG}-java-panama.zip artifacts/java-panama-jar-${TAG}/*
+          zip -r FSE_Wrapper-${TAG}-dotnet.zip      artifacts/dotnet-libs-${TAG}/
+          zip -j FSE_Wrapper-${TAG}-nuget.zip       artifacts/nuget-packages-${TAG}/*
       - uses: actions/upload-artifact@v4
         with:
           name: release-packages-${{ github.ref_name }}
@@ -304,7 +341,7 @@ jobs:
         run: |
           ./mvnw -B package -DskipTests
           JAR=$(ls target/FSE_Wrapper-*.jar | grep -v original | head -1)
-          java --enable-native-access=ALL-UNNAMED -jar "$JAR" -rf json -rff jmh_results.json -wi 3 -i 5
+          java -jar "$JAR" -rf json -rff jmh_results.json -wi 3 -i 5
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'

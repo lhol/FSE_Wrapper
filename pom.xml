@@ -29,7 +29,7 @@
     <testSourceDirectory>java/src/test/java</testSourceDirectory>
 
     <plugins>
-      <!-- Add jmh + Panama source directories to compilation -->
+      <!-- Add jmh source directory to compilation -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
@@ -43,20 +43,18 @@
             <configuration>
               <sources>
                 <source>java/src/jmh/java</source>
-                <source>java-panama/src/main/java</source>
               </sources>
             </configuration>
           </execution>
         </executions>
       </plugin>
       <plugin>
-       <groupId>org.apache.maven.plugins</groupId>
-       <artifactId>maven-compiler-plugin</artifactId>
-       <version>3.13.0</version>
-       <configuration>
-         <!-- Java 22+ required: FFM API (java.lang.foreign) was finalized in Java 22 (JEP 454) -->
-         <release>22</release>
-       </configuration>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>11</release>
+        </configuration>
       </plugin>
 
       <plugin>
@@ -64,10 +62,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.1.2</version>
         <configuration>
-          <argLine>
-            -Djava.library.path=${project.basedir}/native/build${path.separator}${project.basedir}/native/build/Release
-            --enable-native-access=ALL-UNNAMED
-          </argLine>
+          <argLine>-Djava.library.path=${project.basedir}/native/build${path.separator}${project.basedir}/native/build/Release</argLine>
         </configuration>
       </plugin>
 

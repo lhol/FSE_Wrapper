@@ -1,0 +1,46 @@
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.karenta</groupId>
+  <artifactId>FSE_Wrapper-panama</artifactId>
+  <version>0.0.15</version>
+
+  <description>
+    Java 22+ Panama FFI bindings for Huff0 and FSE (FiniteStateEntropy).
+    Requires Java 22+ (FFM API finalized in Java 22, JEP 454).
+    Use FSE_Wrapper for the Java 11+ compatible JNI bindings.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.0</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>22</release>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.1.2</version>
+        <configuration>
+          <argLine>
+            -Djava.library.path=${project.basedir}/../native/build${path.separator}${project.basedir}/../native/build/Release
+            --enable-native-access=ALL-UNNAMED
+          </argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

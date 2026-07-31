@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Benchmark)
 @Warmup(iterations = 2, time = 1)
 @Measurement(iterations = 3, time = 1)
-@Fork(value = 1, jvmArgsPrepend = "--enable-native-access=ALL-UNNAMED")
+@Fork(1)
 public class CodeBench {
 
     @Param({"512", "1024", "4096", "16384", "65536", "262144", "1048576", "4194304", "16777216"})
@@ -41,13 +41,8 @@ public class CodeBench {
     }
 
     @Benchmark
-    public byte[] huff0CompressJNI() {
+    public byte[] huff0Compress() {
         return Huff0.compress(data);
-    }
-
-    @Benchmark
-    public byte[] huff0CompressPanama() throws Throwable {
-        return Huff0Panama.compress(data);
     }
 }
 

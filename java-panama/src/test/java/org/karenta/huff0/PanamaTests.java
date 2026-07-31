@@ -4,8 +4,8 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for the Java 21 Panama FFI binding (Huff0Panama).
- * Requires --enable-native-access=ALL-UNNAMED JVM flag (set via Surefire config).
+ * Tests for the Java 22+ Panama FFI binding (Huff0Panama).
+ * Requires --enable-native-access=ALL-UNNAMED JVM flag (set in Surefire config).
  */
 public class PanamaTests {
 
@@ -18,10 +18,10 @@ public class PanamaTests {
     @Test
     public void testHuff0PanamaRoundtrip() throws Throwable {
         byte[] compressed = Huff0Panama.compress(DATA);
-        assertTrue(compressed.length > 0, "Panama compress must produce output");
-        assertTrue(compressed.length < DATA.length, "Compressible data must shrink");
+        assertTrue(compressed.length > 0, "compress must produce output");
+        assertTrue(compressed.length < DATA.length, "compressible data must shrink");
         byte[] restored = Huff0Panama.decompress(compressed, DATA.length);
-        assertArrayEquals(DATA, restored, "Panama decompress must restore original");
+        assertArrayEquals(DATA, restored, "decompress must restore original");
     }
 
     @Test

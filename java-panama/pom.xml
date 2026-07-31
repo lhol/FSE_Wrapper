@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.lhol</groupId>
   <artifactId>FSE_Wrapper-panama</artifactId>
-  <version>0.0.16</version>
+  <version>0.1.1</version>
   <name>FSE_Wrapper-panama</name>
   <description>Java 22+ Panama FFI bindings for Huff0 and FSE (Finite State Entropy). Requires Java 22+. Use FSE_Wrapper for Java 11+ compatible JNI bindings.</description>
   <url>https://github.com/lhol/FSE_Wrapper</url>

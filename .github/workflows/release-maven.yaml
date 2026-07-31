@@ -1,0 +1,91 @@
+name: Publish to Maven Central
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Sign and deploy both JARs to OSSRH (Sonatype Maven Central)
+  # ─────────────────────────────────────────────────────────────────────────────
+  maven-publish:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '22'
+          cache: maven
+          # Configures ~/.m2/settings.xml with the ossrh server credentials
+          server-id: ossrh
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Download linux-x64 native libs (for JNI compilation/javadoc)
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-x64-${{ github.ref_name }}
+          path: native/build
+        continue-on-error: true   # artifact may not exist if run standalone
+
+      - name: Set version from tag
+        run: |
+          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          ./mvnw versions:set -DnewVersion=${VERSION} -DgenerateBackupPoms=false
+          ./mvnw -f java-panama/pom.xml versions:set -DnewVersion=${VERSION} -DgenerateBackupPoms=false
+
+      - name: Deploy JNI JAR to Maven Central
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./mvnw -B clean deploy \
+            -DskipTests \
+            -Dgpg.passphrase="${{ secrets.GPG_PASSPHRASE }}"
+
+      - name: Deploy Panama JAR to Maven Central
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./mvnw -f java-panama/pom.xml -B clean deploy \
+            -DskipTests \
+            -Dgpg.passphrase="${{ secrets.GPG_PASSPHRASE }}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SETUP INSTRUCTIONS (one-time, done by the repository owner)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# 1. Create an OSSRH account at https://central.sonatype.com/
+#    and claim the namespace org.karenta
+#
+# 2. Generate a GPG key pair:
+#      gpg --gen-key
+#      gpg --list-secret-keys --keyid-format=long
+#      gpg --armor --export-secret-keys <KEY_ID> | pbcopy
+#
+# 3. Upload the public key to a keyserver:
+#      gpg --keyserver keyserver.ubuntu.com --send-keys <KEY_ID>
+#
+# 4. Add the following GitHub repository secrets:
+#      OSSRH_USERNAME    — your Sonatype account username (or user token)
+#      OSSRH_TOKEN       — your Sonatype account password (or user token)
+#      GPG_PRIVATE_KEY   — the armored private key (from step 2)
+#      GPG_PASSPHRASE    — the passphrase used when generating the key
+#
+# 5. Create a GitHub environment named "release" (Settings → Environments)
+#    and optionally require manual approval before deployment

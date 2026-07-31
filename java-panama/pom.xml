@@ -3,12 +3,42 @@
   <groupId>org.karenta</groupId>
   <artifactId>FSE_Wrapper-panama</artifactId>
   <version>0.0.16</version>
+  <name>FSE_Wrapper-panama</name>
+  <description>Java 22+ Panama FFI bindings for Huff0 and FSE (Finite State Entropy). Requires Java 22+. Use FSE_Wrapper for Java 11+ compatible JNI bindings.</description>
+  <url>https://github.com/lhol/FSE_Wrapper</url>
 
-  <description>
-    Java 22+ Panama FFI bindings for Huff0 and FSE (FiniteStateEntropy).
-    Requires Java 22+ (FFM API finalized in Java 22, JEP 454).
-    Use FSE_Wrapper for the Java 11+ compatible JNI bindings.
-  </description>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>lhol</id>
+      <name>Lars Holzinger</name>
+      <url>https://github.com/lhol</url>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:git://github.com/lhol/FSE_Wrapper.git</connection>
+    <developerConnection>scm:git:ssh://github.com/lhol/FSE_Wrapper.git</developerConnection>
+    <url>https://github.com/lhol/FSE_Wrapper</url>
+  </scm>
+
+  <distributionManagement>
+    <snapshotRepository>
+      <id>ossrh</id>
+      <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+    </snapshotRepository>
+    <repository>
+      <id>ossrh</id>
+      <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+  </distributionManagement>
 
   <dependencies>
     <dependency>
@@ -40,6 +70,52 @@
             --enable-native-access=ALL-UNNAMED
           </argLine>
         </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>3.3.0</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals><goal>jar-no-fork</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.6.3</version>
+        <configuration>
+          <source>22</source>
+        </configuration>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals><goal>jar</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>3.2.4</version>
+        <executions>
+          <execution>
+            <id>sign-artifacts</id>
+            <phase>verify</phase>
+            <goals><goal>sign</goal></goals>
+            <configuration>
+              <gpgArguments>
+                <arg>--pinentry-mode</arg>
+                <arg>loopback</arg>
+              </gpgArguments>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

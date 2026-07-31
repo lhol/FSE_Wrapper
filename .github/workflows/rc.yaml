@@ -226,44 +226,45 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-     - name: Download Linux x64 native libs
+      - name: Download Linux x64 native libs
         uses: actions/download-artifact@v5
         with:
-         name: native-linux-x64-${{ github.ref_name }}
+          name: native-linux-x64-${{ github.ref_name }}
           path: native/build
       - name: Native benchmark
+        shell: bash
         run: |
           chmod +x native/build/bench_codecs
-         cd native/build && ./bench_codecs > ../../native_bench.txt
-         cat ../../native_bench.txt
-     - name: Java JMH benchmark (short run)
-       run: |
-         ./mvnw -B package -DskipTests
-         JAR=$(ls target/FSE_Wrapper-*.jar | grep -v original | head -1)
-         java --enable-native-access=ALL-UNNAMED -jar "$JAR" -rf json -rff jmh_results.json -wi 1 -i 2
-     - uses: actions/setup-dotnet@v5
-       with:
-         dotnet-version: '8.0.x'
-     - name: .NET Huff0 benchmark
-       env:
-         LD_LIBRARY_PATH: ${{ github.workspace }}/native/build
-       run: |
-         dotnet run -c Release --project csharp/Huff0.net/Benchmarks/Benchmarks.csproj \
-           -- --job short --exporters json --artifacts csharp/Huff0.net/Benchmarks/artifacts
-     - name: .NET Fse benchmark
-       env:
-         LD_LIBRARY_PATH: ${{ github.workspace }}/native/build
-       run: |
-         dotnet run -c Release --project csharp/Fse.net/Benchmarks/Benchmarks.csproj \
-           -- --job short --exporters json --artifacts csharp/Fse.net/Benchmarks/artifacts
-     - name: Generate benchmark dashboard
-       run: python3 scripts/generate_dashboard.py
-     - uses: actions/upload-artifact@v5
-       with:
-         name: rc-benchmarks-${{ github.ref_name }}
-         path: |
-           native_bench.txt
-           jmh_results.json
-           performance_dashboard.md
-           csharp/Huff0.net/Benchmarks/artifacts
-           csharp/Fse.net/Benchmarks/artifacts
+          cd native/build && ./bench_codecs > ../../native_bench.txt
+          cat ../../native_bench.txt
+      - name: Java JMH benchmark (short run)
+        run: |
+          ./mvnw -B package -DskipTests
+          JAR=$(ls target/FSE_Wrapper-*.jar | grep -v original | head -1)
+          java --enable-native-access=ALL-UNNAMED -jar "$JAR" -rf json -rff jmh_results.json -wi 1 -i 2
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: .NET Huff0 benchmark
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/native/build
+        run: |
+          dotnet run -c Release --project csharp/Huff0.net/Benchmarks/Benchmarks.csproj \
+            -- --job short --exporters json --artifacts csharp/Huff0.net/Benchmarks/artifacts
+      - name: .NET Fse benchmark
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/native/build
+        run: |
+          dotnet run -c Release --project csharp/Fse.net/Benchmarks/Benchmarks.csproj \
+            -- --job short --exporters json --artifacts csharp/Fse.net/Benchmarks/artifacts
+      - name: Generate benchmark dashboard
+        run: python3 scripts/generate_dashboard.py
+      - uses: actions/upload-artifact@v5
+        with:
+          name: rc-benchmarks-${{ github.ref_name }}
+          path: |
+            native_bench.txt
+            jmh_results.json
+            performance_dashboard.md
+            csharp/Huff0.net/Benchmarks/artifacts
+            csharp/Fse.net/Benchmarks/artifacts

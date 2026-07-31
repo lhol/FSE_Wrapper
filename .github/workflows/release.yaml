@@ -272,10 +272,10 @@ jobs:
           user: lhol
       - name: Push packages to nuget.org
         run: |
-         dotnet nuget push nuget-out/*.nupkg \
-           --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
-           --source https://api.nuget.org/v3/index.json \
-           --skip-duplicate
+          dotnet nuget push nuget-out/*.nupkg \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
 
   # ---------------------------------------------------------------------------
   # Run benchmarks and attach results to the release (non-blocking)

@@ -77,7 +77,7 @@ jobs:
           if [ -f "native/build/Release/bench_codecs.exe" ]; then
             cp native/build/Release/bench_codecs.exe dist/
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: native-${{ matrix.artifact }}-${{ github.ref_name }}
           path: dist/
@@ -98,14 +98,14 @@ jobs:
           java-version: '22'
           cache: maven
       - name: Download linux-x64 native libs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: native-linux-x64-${{ github.ref_name }}
           path: native/build
       - name: Test JNI
         run: ./mvnw -B clean test
       - name: Download all native libs for multi-platform JAR
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: native-*-${{ github.ref_name }}
           merge-multiple: true
@@ -118,7 +118,7 @@ jobs:
       - name: Find shaded JAR
         id: jar
         run: echo "path=$(ls target/FSE_Wrapper-*.jar | grep -v original | head -1)" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: java-jni-jar-${{ github.ref_name }}
           path: ${{ steps.jar.outputs.path }}
@@ -139,7 +139,7 @@ jobs:
           java-version: '22'
           cache: maven
       - name: Download linux-x64 native libs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: native-linux-x64-${{ github.ref_name }}
           path: native/build
@@ -153,7 +153,7 @@ jobs:
       - name: Find Panama JAR
         id: jar
         run: echo "path=$(ls java-panama/target/FSE_Wrapper-panama-*.jar | head -1)" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: java-panama-jar-${{ github.ref_name }}
           path: ${{ steps.jar.outputs.path }}
@@ -170,7 +170,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - name: Download all native artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: native-*-${{ github.ref_name }}
           path: native-artifacts
@@ -200,13 +200,13 @@ jobs:
           dotnet build csharp/Fse.net/src/Fse.Net.csproj    -c Release -p:Version=${VERSION}
           dotnet pack  csharp/Huff0.net/src/Huff0.Net.csproj -c Release -p:Version=${VERSION} --no-build -o nuget-out/
           dotnet pack  csharp/Fse.net/src/Fse.Net.csproj    -c Release -p:Version=${VERSION} --no-build -o nuget-out/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: dotnet-libs-${{ github.ref_name }}
           path: |
             csharp/Huff0.net/src/bin/Release/
             csharp/Fse.net/src/bin/Release/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: nuget-packages-${{ github.ref_name }}
           path: nuget-out/*.nupkg
@@ -218,7 +218,7 @@ jobs:
     needs: [native, java-jni, java-panama, dotnet]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           pattern: '*-${{ github.ref_name }}'
           path: artifacts
@@ -232,7 +232,7 @@ jobs:
           zip -j FSE_Wrapper-${TAG}-java-panama.zip artifacts/java-panama-jar-${TAG}/*
           zip -r FSE_Wrapper-${TAG}-dotnet.zip      artifacts/dotnet-libs-${TAG}/
           zip -j FSE_Wrapper-${TAG}-nuget.zip       artifacts/nuget-packages-${TAG}/*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: release-packages-${{ github.ref_name }}
           path: FSE_Wrapper-*.zip
@@ -254,7 +254,7 @@ jobs:
           java-version: '22'
           cache: maven
       - name: Download linux-x64 native libs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: native-linux-x64-${{ github.ref_name }}
           path: native/build
@@ -286,7 +286,7 @@ jobs:
             -- --job short --exporters json --artifacts csharp/Fse.net/Benchmarks/artifacts
       - name: Generate benchmark dashboard
         run: python3 scripts/generate_dashboard.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: rc-benchmarks-${{ github.ref_name }}
           path: |

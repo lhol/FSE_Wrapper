@@ -9,6 +9,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 ---
+## [0.1.2] — 2026-08-01
+### Added
+- Maven Release and Nuget Publishing fixed (using shorter lived credentials for nuget)
+---
 ## [0.1.1] — 2026-08-01
 ### Added
 - Maven Release workflow (`release-maven.yaml`) for publishing both JNI and Panama JARs to Maven Central via the Central Publisher Portal.

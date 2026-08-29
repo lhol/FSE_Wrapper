@@ -280,11 +280,26 @@ jobs:
           chmod +x native/build/bench_codecs
           cd native/build && ./bench_codecs > ../../native_bench.txt
           cat ../../native_bench.txt
-      - name: Java JMH benchmark (short run)
+      - name: Java JMH benchmark — JNI (short run)
         run: |
           ./mvnw -B package -DskipTests -P bench
-          JAR=$(ls target/FSE_Wrapper-*-benchmarks.jar | head -1)
-          java -jar "$JAR" -rf json -rff jmh_results.json -wi 1 -i 2
+          JNI_JAR=$(ls target/FSE_Wrapper-*-benchmarks.jar | head -1)
+          java -jar "$JNI_JAR" -rf json -rff jmh_jni.json -wi 1 -i 2
+      - name: Java JMH benchmark — Panama FFI (short run)
+        run: |
+          ./mvnw -f java-panama/pom.xml -B package -DskipTests -P bench
+          PANAMA_JAR=$(ls java-panama/target/FSE_Wrapper-panama-*-benchmarks.jar | head -1)
+          java --enable-native-access=ALL-UNNAMED \
+               -jar "$PANAMA_JAR" -rf json -rff jmh_panama.json -wi 1 -i 2
+      - name: Merge JMH results
+        run: |
+          python3 -c "
+          import json
+          jni    = json.load(open('jmh_jni.json'))
+          panama = json.load(open('jmh_panama.json'))
+          json.dump(jni + panama, open('jmh_results.json', 'w'))
+          print(f'Merged {len(jni)} JNI + {len(panama)} Panama benchmarks')
+          "
           java -jar "$JAR" -rf json -rff jmh_results.json -wi 1 -i 2
       - uses: actions/setup-dotnet@v5
         with:

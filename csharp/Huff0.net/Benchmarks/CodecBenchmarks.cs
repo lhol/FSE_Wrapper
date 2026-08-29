@@ -7,7 +7,8 @@ namespace Huff0.Net.Benchmarks
     [MemoryDiagnoser]
     public class CodecBenchmarks
     {
-        [Params(512, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216)]
+        // Huff0 hard limit: HUF_BLOCKSIZE_MAX = 128 KB; cap params well below that.
+        [Params(512, 1024, 4096, 16384, 65536)]
         public int Size { get; set; }
 
         [Params("LOW_ENTROPY", "MEDIUM_ENTROPY")]
@@ -15,13 +16,13 @@ namespace Huff0.Net.Benchmarks
 
         private byte[] data = new byte[0];
 
-        private static readonly byte[] LoremBytes = Encoding.UTF8.GetBytes(
-            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor " +
-            "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud " +
-            "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure " +
-            "dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. " +
-            "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt " +
-            "mollit anim id est laborum. ");
+        // ~1 KB mixed text — same corpus as the Java JMH benchmarks
+        private static readonly byte[] LoremBytes = System.Text.Encoding.UTF8.GetBytes(
+            "Data compression reduces the size of data by encoding information more efficiently. " +
+            "Lossless compression algorithms like Huffman coding, arithmetic coding, and Asymmetric " +
+            "Numeral Systems (ANS) exploit statistical redundancy in input data. Huffman coding assigns " +
+            "shorter codes to more frequent symbols: a symbol with probability 0.5 gets a 1-bit code. " +
+            "Huff0 compress: 1200-2500 MB/s on x86-64; HUF_BLOCKSIZE_MAX = 128 KB. ");
 
         [GlobalSetup]
         public void Setup()

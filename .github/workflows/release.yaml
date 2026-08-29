@@ -535,11 +535,26 @@ jobs:
       - name: Native benchmark
         run: |
           cd native/build && ./bench_codecs > ../../native_bench.txt
-      - name: Java JMH benchmark
+      - name: Java JMH benchmark (JNI)
         run: |
           ./mvnw -B package -DskipTests -P bench
-          JAR=$(ls target/FSE_Wrapper-*-benchmarks.jar | head -1)
-          java -jar "$JAR" -rf json -rff jmh_results.json -wi 3 -i 5
+          JNI_JAR=$(ls target/FSE_Wrapper-*-benchmarks.jar | head -1)
+          java -jar "$JNI_JAR" -rf json -rff jmh_jni.json -wi 3 -i 5
+      - name: Java JMH benchmark (Panama FFI)
+        run: |
+          ./mvnw -f java-panama/pom.xml -B package -DskipTests -P bench
+          PANAMA_JAR=$(ls java-panama/target/FSE_Wrapper-panama-*-benchmarks.jar | head -1)
+          java --enable-native-access=ALL-UNNAMED \
+               -jar "$PANAMA_JAR" -rf json -rff jmh_panama.json -wi 3 -i 5
+      - name: Merge JMH results
+        run: |
+          python3 -c "
+          import json
+          jni    = json.load(open('jmh_jni.json'))
+          panama = json.load(open('jmh_panama.json'))
+          json.dump(jni + panama, open('jmh_results.json', 'w'))
+          print(f'Merged {len(jni)} JNI + {len(panama)} Panama benchmarks')
+          "
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'

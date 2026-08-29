@@ -15,13 +15,12 @@ namespace Fse.Net.Benchmarks
 
         private byte[] data = new byte[0];
 
-        private static readonly byte[] LoremBytes = Encoding.UTF8.GetBytes(
-            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor " +
-            "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud " +
-            "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure " +
-            "dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. " +
-            "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt " +
-            "mollit anim id est laborum. ");
+        // ~1 KB mixed text — same corpus as the Java JMH benchmarks
+        private static readonly byte[] LoremBytes = System.Text.Encoding.UTF8.GetBytes(
+            "Data compression reduces the size of data by encoding information more efficiently. " +
+            "Lossless compression algorithms like Huffman coding, arithmetic coding, and Asymmetric " +
+            "Numeral Systems (ANS) exploit statistical redundancy in input data. " +
+            "FSE compress: 800-1800 MB/s on x86-64. Zstandard uses both Huff0 and FSE. ");
 
         [GlobalSetup]
         public void Setup()

@@ -369,9 +369,11 @@ jobs:
           var data = new byte[512];
           for (int i = 0; i < data.Length; i++) data[i] = seed[i % seed.Length];
           var h0   = Huff0Interop.Compress(data);
+          if (h0.Length == 0) throw new Exception("Huff0 compression returned empty (incompressible?)");
           var h0d  = Huff0Interop.Decompress(h0, data.Length);
           if (!data.AsSpan().SequenceEqual(h0d)) throw new Exception("Huff0 roundtrip failed");
           var fse  = FseInterop.Compress(data);
+          if (fse.Length == 0) throw new Exception("FSE compression returned empty (incompressible?)");
           var fsed = FseInterop.Decompress(fse, data.Length);
           if (!data.AsSpan().SequenceEqual(fsed)) throw new Exception("FSE roundtrip failed");
           Console.WriteLine($"Smoke test passed: Huff0 and FSE roundtrip OK ({data.Length} bytes → {h0.Length}B Huff0 / {fse.Length}B FSE)");

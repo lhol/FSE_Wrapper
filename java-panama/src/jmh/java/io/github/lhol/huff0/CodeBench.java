@@ -13,7 +13,8 @@ import java.util.concurrent.TimeUnit;
 @Fork(1)
 public class CodeBench {
 
-    @Param({"512", "1024", "4096", "16384", "65536", "262144", "1048576", "4194304", "16777216"})
+    // Huff0 hard limit: HUF_BLOCKSIZE_MAX = 128 KB. Cap params well below that.
+    @Param({"512", "1024", "4096", "16384", "65536"})
     public int size;
 
     @Param({"LOW_ENTROPY", "MEDIUM_ENTROPY"})

@@ -165,8 +165,12 @@ def generate_markdown(timestamp, native, jmh, huff0_bdn, fse_bdn):
     lines = [
         "# 📊 Huff0 & FSE Performance Dashboard\n",
         f"**Last updated:** {timestamp}\n",
-        "> All throughput values are in **MB/s** (higher = faster).\n",
+        "> All throughput values are in **MB/s** (higher = faster).  \n",
+        "> **Note:** Huff0 has a hard block size limit of **128 KB** (`HUF_BLOCKSIZE_MAX`).  \n",
+        "> Sizes above 128 KB are shown as `N/A` for Huff0 — split large inputs into 128 KB blocks.\n",
     ]
+
+    HUFF0_MAX_SIZE = 128 * 1024  # HUF_BLOCKSIZE_MAX
 
     def bench_table(codec, native_data, jni_data, panama_data, bdn_data, dt):
         """Generate a table for one codec + data type across all sizes."""
@@ -176,6 +180,10 @@ def generate_markdown(timestamp, native, jmh, huff0_bdn, fse_bdn):
         rows = [header, sep]
         for sz in SIZES:
             sl = SIZE_LABELS[sz]
+            # Huff0 cannot handle inputs > HUF_BLOCKSIZE_MAX
+            if codec == "Huff0" and sz > HUFF0_MAX_SIZE:
+                rows.append(f"| {sl:<8} | {'N/A':<8} | {'N/A':<10} | {'N/A':<13} | {'N/A':<8} |")
+                continue
             nat   = _fmt(native_data.get(sz, {}).get(dt))
             jni   = _fmt(jni_data.get(sz, {}).get(dt))
             pan   = _fmt(panama_data.get(sz, {}).get(dt))

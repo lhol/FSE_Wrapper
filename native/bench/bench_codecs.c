@@ -6,14 +6,21 @@
 
 static const int ITER = 50;   /* iterations per size; enough for stable timing */
 
-/* Medium-entropy text repeated to fill buffers */
+/* Medium-entropy text repeated to fill buffers (>3.8 KB to avoid trivial periodicity) */
 static const char* LOREM =
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor "
-    "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
-    "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure "
-    "dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. "
-    "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt "
-    "mollit anim id est laborum. ";
+    "Data compression reduces the size of data by encoding information more efficiently. "
+    "Lossless compression algorithms like Huffman coding, arithmetic coding, and Asymmetric "
+    "Numeral Systems (ANS) exploit statistical redundancy in input data. Huffman coding assigns "
+    "shorter codes to more frequent symbols: a symbol with probability 0.5 gets a 1-bit code, "
+    "while a symbol with probability 0.0625 gets a 4-bit code. The theoretical limit is given "
+    "by Shannon entropy: H(X) = -sum p(x) * log2(p(x)). For a uniform distribution over 256 "
+    "symbols, H = 8 bits/symbol. For a biased source with 90% zeros and 10% ones, H ~= 0.469 "
+    "bits/symbol. Modern compressors approach this limit closely. "
+    "Finite State Entropy (FSE) is a tabled ANS implementation by Yann Collet (2013). "
+    "It encodes a symbol stream using a finite state machine with 2^tableLog states, typically "
+    "2048 (tableLog=11). Huff0 compress: 1200-2500 MB/s on x86-64; FSE compress: 800-1800 MB/s. "
+    "Zstandard (zstd) uses both Huff0 (for literals) and FSE (for sequences and lengths). "
+    "Common benchmark sizes: 512 B, 1 KB, 4 KB, 16 KB, 64 KB (Huff0 max: 128 KB). ";
 
 #ifdef _WIN32
 #  include <windows.h>
@@ -55,6 +62,16 @@ static void bench_codec(const char* name,
                         unsigned char* src,
                         unsigned char* dst, size_t dstCap,
                         size_t (*compress_fn)(void*, size_t, const void*, size_t)) {
+    /* Probe: check if codec supports this input size before timing.
+       HUF_compress returns 0 for srcSize > 128 KB; measuring that gives
+       astronomical "throughput" from near-zero elapsed time. */
+    size_t probe = compress_fn(dst, dstCap, src, srcSize);
+    if (probe == 0) {
+        printf("%s compress [%s, %s]: N/A (incompressible or unsupported size)\n",
+               name, size_label(srcSize), datatype);
+        return;
+    }
+
     /* warmup */
     for (int i = 0; i < 3; i++) compress_fn(dst, dstCap, src, srcSize);
 
@@ -67,10 +84,15 @@ static void bench_codec(const char* name,
 }
 
 static size_t huff0_wrap(void* dst, size_t dstCap, const void* src, size_t srcSize) {
-    return HUF_compress(dst, dstCap, src, srcSize);
+    /* HUF_compress returns an error code (not 0) for srcSize > HUF_BLOCKSIZE_MAX.
+       Convert any error or unsupported size to 0 so bench_codec prints N/A. */
+    if (srcSize > HUF_BLOCKSIZE_MAX) return 0;
+    size_t r = HUF_compress(dst, dstCap, src, srcSize);
+    return HUF_isError(r) ? 0 : r;
 }
 static size_t fse_wrap(void* dst, size_t dstCap, const void* src, size_t srcSize) {
-    return FSE_compress(dst, dstCap, src, srcSize);
+    size_t r = FSE_compress(dst, dstCap, src, srcSize);
+    return FSE_isError(r) ? 0 : r;
 }
 
 int main(void) {

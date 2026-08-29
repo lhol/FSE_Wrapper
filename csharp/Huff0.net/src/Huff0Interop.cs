@@ -15,6 +15,13 @@ namespace Huff0.Net
         /// </summary>
         public const int MinCompressSize = 12;
 
+        /// <summary>
+        /// Maximum number of bytes that <see cref="Compress"/> will accept.
+        /// This is HUF_BLOCKSIZE_MAX = 128 KB from the FiniteStateEntropy library.
+        /// To compress larger data, split into blocks of at most this size.
+        /// </summary>
+        public const int MaxCompressSize = 128 * 1024; // HUF_BLOCKSIZE_MAX
+
         [DllImport(LIB, CallingConvention = CallingConvention.Cdecl)]
         private static extern UIntPtr huff0_compress_bound(UIntPtr srcSize);
 
@@ -31,10 +38,11 @@ namespace Huff0.Net
         /// <summary>
         /// Compresses <paramref name="input"/> using the Huff0 entropy coder.
         /// </summary>
-        /// <param name="input">Raw bytes to compress. Must be at least <see cref="MinCompressSize"/> bytes.</param>
+        /// <param name="input">Raw bytes to compress. Must be between <see cref="MinCompressSize"/>
+        /// and <see cref="MaxCompressSize"/> bytes. For data larger than 128 KB, split into blocks.</param>
         /// <returns>Compressed bytes, always shorter than <paramref name="input"/> for compressible data.</returns>
         /// <exception cref="ArgumentNullException">If <paramref name="input"/> is null.</exception>
-        /// <exception cref="ArgumentException">If input is shorter than <see cref="MinCompressSize"/> bytes.</exception>
+        /// <exception cref="ArgumentException">If input length is outside [MinCompressSize, MaxCompressSize].</exception>
         /// <exception cref="InvalidOperationException">If the data is not compressible by Huff0
         /// (e.g. random, encrypted, or already-compressed data).</exception>
         public static byte[] Compress(byte[] input)
@@ -44,6 +52,11 @@ namespace Huff0.Net
                 throw new ArgumentException(
                     $"input too small for Huff0 compression: {input.Length} bytes " +
                     $"(minimum: {MinCompressSize} bytes)", nameof(input));
+            if (input.Length > MaxCompressSize)
+                throw new ArgumentException(
+                    $"input too large for Huff0 compression: {input.Length} bytes " +
+                    $"(maximum: {MaxCompressSize} bytes = 128 KB). " +
+                    $"Split into blocks of at most {MaxCompressSize} bytes.", nameof(input));
 
             UIntPtr bound = huff0_compress_bound((UIntPtr)input.Length);
             byte[] dst = new byte[(ulong)bound];

@@ -11,11 +11,14 @@ package io.github.lhol.huff0;
  * is loaded automatically from the classpath on first use via {@link io.github.lhol.NativeLoader}.
  * Requires Java 11+.
  *
- * <h2>Minimum input size</h2>
- * <p>Huff0 requires at least {@value #MIN_COMPRESS_SIZE} bytes of input to attempt compression.
- * Inputs smaller than this are rejected with {@link IllegalArgumentException}.
- * Inputs that are too random or already-compressed may also be rejected even above this threshold
- * — Huff0 only stores data when it can actually reduce size.
+ * <h2>Input size limits</h2>
+ * <p>Huff0 requires at least {@value #MIN_COMPRESS_SIZE} bytes of input and at most
+ * {@value #MAX_COMPRESS_SIZE} bytes ({@code HUF_BLOCKSIZE_MAX = 128 KB}).
+ * Inputs outside this range are rejected with {@link IllegalArgumentException}.
+ * To compress data larger than 128 KB, split it into blocks of at most
+ * {@value #MAX_COMPRESS_SIZE} bytes and compress each block independently.
+ * Inputs that are too random or already-compressed may also be rejected even within
+ * the allowed range — Huff0 only stores data when it can actually reduce size.
  * For reliable compression, use inputs of at least 128 bytes with non-uniform byte distributions.
  *
  * <p>Thread safety: all methods are stateless and may be called concurrently.
@@ -28,6 +31,13 @@ public final class Huff0 {
      * ({@code srcSize < 12 → return 0}).
      */
     public static final int MIN_COMPRESS_SIZE = 12;
+
+    /**
+     * Maximum number of bytes that {@link #compress(byte[])} will accept.
+     * This is {@code HUF_BLOCKSIZE_MAX = 128 KB} from the FiniteStateEntropy library.
+     * To compress larger data, split into blocks of at most this size.
+     */
+    public static final int MAX_COMPRESS_SIZE = 128 * 1024; // HUF_BLOCKSIZE_MAX
 
     static {
         io.github.lhol.NativeLoader.load("huff0");
@@ -42,10 +52,11 @@ public final class Huff0 {
      * Compresses {@code input} using the Huff0 entropy coder.
      *
      * @param input the raw bytes to compress; must not be {@code null};
-     *              must have at least {@value #MIN_COMPRESS_SIZE} bytes
+     *              must have between {@value #MIN_COMPRESS_SIZE} and {@value #MAX_COMPRESS_SIZE} bytes
      * @return the compressed bytes (always shorter than {@code input} for compressible data)
      * @throws NullPointerException     if {@code input} is {@code null}
      * @throws IllegalArgumentException if {@code input.length < }{@value #MIN_COMPRESS_SIZE}
+     *                                  or {@code input.length > }{@value #MAX_COMPRESS_SIZE}
      * @throws IllegalStateException    if the data is not compressible by Huff0
      *                                  (e.g. random, encrypted, or already-compressed data)
      */
@@ -57,6 +68,12 @@ public final class Huff0 {
             throw new IllegalArgumentException(
                 "input too small for Huff0 compression: " + input.length +
                 " bytes (minimum: " + MIN_COMPRESS_SIZE + " bytes)");
+        }
+        if (input.length > MAX_COMPRESS_SIZE) {
+            throw new IllegalArgumentException(
+                "input too large for Huff0 compression: " + input.length +
+                " bytes (maximum: " + MAX_COMPRESS_SIZE + " bytes = 128 KB). " +
+                "Split into blocks of at most " + MAX_COMPRESS_SIZE + " bytes.");
         }
         byte[] result = compressNative(input);
         if (result.length == 0) {

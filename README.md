@@ -41,7 +41,7 @@ Both algorithms are used internally by Zstandard (zstd). This library makes them
 <dependency>
   <groupId>io.github.lhol</groupId>
   <artifactId>FSE_Wrapper</artifactId>
-  <version>1.1.3</version>
+  <version>0.2.0</version>
 </dependency>
 ```
 
@@ -50,7 +50,7 @@ For Java 22+ with the Panama FFI binding:
 <dependency>
   <groupId>io.github.lhol</groupId>
   <artifactId>FSE_Wrapper-panama</artifactId>
-  <version>1.1.3</version>
+  <version>0.2.0</version>
 </dependency>
 ```
 
@@ -122,7 +122,10 @@ byte[] restored   = FseInterop.Decompress(compressed, input.Length);
 
 > **Note:** Both Huff0 and FSE work best on data with non-uniform byte distributions. Highly random or already-compressed data will not reduce in size.
 >
-> **Minimum input size:** Huff0 requires at least **12 bytes**; FSE requires at least **3 bytes**. Inputs below these thresholds throw `IllegalArgumentException` / `ArgumentException`. For meaningful compression gains, use at least **128 bytes** of data with varied byte content. Both algorithms throw `IllegalStateException` / `InvalidOperationException` when compression produces no output (incompressible data).
+> **Input size limits:**
+> - **Huff0:** minimum **12 bytes**, maximum **128 KB** (`HUF_BLOCKSIZE_MAX = 131072` bytes). For data larger than 128 KB, split into 128 KB blocks and compress each independently. Throws `IllegalArgumentException` / `ArgumentException` outside this range.
+> - **FSE:** minimum **3 bytes**, no maximum. Throws `IllegalArgumentException` / `ArgumentException` below minimum.
+> - Both throw `IllegalStateException` / `InvalidOperationException` if the data is incompressible (random, encrypted, or uniform).
 
 ## Building from source
 

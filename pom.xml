@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.lhol</groupId>
   <artifactId>FSE_Wrapper</artifactId>
-  <version>1.1.3</version>
+  <version>0.2.0</version>
   <name>FSE_Wrapper</name>
   <description>Java JNI bindings for Huff0 and FSE (Finite State Entropy) compression, backed by Cyan4973's FiniteStateEntropy C library.</description>
   <url>https://github.com/lhol/FSE_Wrapper</url>

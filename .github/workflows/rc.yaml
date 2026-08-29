@@ -104,20 +104,36 @@ jobs:
           path: native/build
       - name: Test JNI
         run: ./mvnw -B clean test
-      - name: Download all native libs for multi-platform JAR
-        uses: actions/download-artifact@v5
+      - name: Download all native libs into per-RID directories (for multi-platform JAR)
+        run: mkdir -p native/artifacts/{linux-x64,linux-arm64,osx-arm64,win-x64,win-arm64}
+      - uses: actions/download-artifact@v5
         with:
-          pattern: native-*-${{ github.ref_name }}
-          merge-multiple: true
-          path: native/build
-      - name: Package shaded JAR
+          name: native-linux-x64-${{ github.ref_name }}
+          path: native/artifacts/linux-x64
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-linux-arm64-${{ github.ref_name }}
+          path: native/artifacts/linux-arm64
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-macos-arm64-${{ github.ref_name }}
+          path: native/artifacts/osx-arm64
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-win-x64-${{ github.ref_name }}
+          path: native/artifacts/win-x64
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-win-arm64-${{ github.ref_name }}
+          path: native/artifacts/win-arm64
+      - name: Package library JAR
         run: |
           VERSION=$(echo "${{ github.ref_name }}" | sed 's/^RC-v//')
           ./mvnw versions:set -DnewVersion=${VERSION} -DgenerateBackupPoms=false
           ./mvnw -B package -DskipTests
-      - name: Find shaded JAR
+      - name: Find library JAR
         id: jar
-        run: echo "path=$(ls target/FSE_Wrapper-*.jar | grep -v original | head -1)" >> $GITHUB_OUTPUT
+        run: echo "path=$(ls target/FSE_Wrapper-*.jar | grep -v '\-javadoc' | grep -v '\-sources' | head -1)" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v5
         with:
           name: java-jni-jar-${{ github.ref_name }}
@@ -152,7 +168,7 @@ jobs:
           ./mvnw -f java-panama/pom.xml -B package -DskipTests
       - name: Find Panama JAR
         id: jar
-        run: echo "path=$(ls java-panama/target/FSE_Wrapper-panama-*.jar | head -1)" >> $GITHUB_OUTPUT
+        run: echo "path=$(ls java-panama/target/FSE_Wrapper-panama-*.jar | grep -v '\-javadoc' | grep -v '\-sources' | head -1)" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v5
         with:
           name: java-panama-jar-${{ github.ref_name }}
@@ -266,8 +282,9 @@ jobs:
           cat ../../native_bench.txt
       - name: Java JMH benchmark (short run)
         run: |
-          ./mvnw -B package -DskipTests
-          JAR=$(ls target/FSE_Wrapper-*.jar | grep -v original | head -1)
+          ./mvnw -B package -DskipTests -P bench
+          JAR=$(ls target/FSE_Wrapper-*-benchmarks.jar | head -1)
+          java -jar "$JAR" -rf json -rff jmh_results.json -wi 1 -i 2
           java -jar "$JAR" -rf json -rff jmh_results.json -wi 1 -i 2
       - uses: actions/setup-dotnet@v5
         with:

@@ -24,7 +24,7 @@ public final class FsePanama {
     private static final MethodHandle MH_BOUND, MH_COMPRESS, MH_DECOMPRESS;
 
     static {
-        System.loadLibrary("fse");
+        io.github.lhol.NativeLoader.load("fse");
         LOOKUP = SymbolLookup.loaderLookup();
         MH_BOUND = LINKER.downcallHandle(
                 LOOKUP.find("fse_compress_bound").orElseThrow(),

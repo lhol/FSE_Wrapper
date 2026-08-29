@@ -15,7 +15,7 @@ package io.github.lhol.fse;
 public final class Fse {
 
     static {
-        System.loadLibrary("fse");
+        io.github.lhol.NativeLoader.load("fse");
     }
 
     private Fse() {}

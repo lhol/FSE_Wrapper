@@ -112,20 +112,36 @@ jobs:
           path: native/build
       - name: Test JNI
         run: ./mvnw -B clean test
-      - name: Download all native libs (for multi-platform JAR)
-        uses: actions/download-artifact@v5
+      - name: Download all native libs into per-RID directories (for multi-platform JAR)
+        run: mkdir -p native/artifacts/{linux-x64,linux-arm64,osx-arm64,win-x64,win-arm64}
+      - uses: actions/download-artifact@v5
         with:
-          pattern: native-*-${{ github.ref_name }}
-          merge-multiple: true
-          path: native/build
-      - name: Package shaded JAR with release version
+          name: native-linux-x64-${{ github.ref_name }}
+          path: native/artifacts/linux-x64
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-linux-arm64-${{ github.ref_name }}
+          path: native/artifacts/linux-arm64
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-macos-arm64-${{ github.ref_name }}
+          path: native/artifacts/osx-arm64
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-win-x64-${{ github.ref_name }}
+          path: native/artifacts/win-x64
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-win-arm64-${{ github.ref_name }}
+          path: native/artifacts/win-arm64
+      - name: Package library JAR with release version
         run: |
           VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
           ./mvnw versions:set -DnewVersion=${VERSION} -DgenerateBackupPoms=false
           ./mvnw -B package -DskipTests
-      - name: Find shaded JAR
+      - name: Find library JAR
         id: jar
-        run: echo "path=$(ls target/FSE_Wrapper-*.jar | grep -v original | head -1)" >> $GITHUB_OUTPUT
+        run: echo "path=$(ls target/FSE_Wrapper-*.jar | grep -v '\-javadoc' | grep -v '\-sources' | head -1)" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v5
         with:
           name: java-jni-jar-${{ github.ref_name }}
@@ -160,7 +176,7 @@ jobs:
           ./mvnw -f java-panama/pom.xml -B package -DskipTests
       - name: Find Panama JAR
         id: jar
-        run: echo "path=$(ls java-panama/target/FSE_Wrapper-panama-*.jar | head -1)" >> $GITHUB_OUTPUT
+        run: echo "path=$(ls java-panama/target/FSE_Wrapper-panama-*.jar | grep -v '\-javadoc' | grep -v '\-sources' | head -1)" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v5
         with:
           name: java-panama-jar-${{ github.ref_name }}
@@ -332,6 +348,8 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
+      - name: Wait for NuGet propagation (15 min)
+        run: sleep 900
       - name: Create and test minimal consumer project
         run: |
           VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
@@ -358,6 +376,133 @@ jobs:
           dotnet run
 
   # ---------------------------------------------------------------------------
+  # Publish JARs to Maven Central (optional — gated by release environment)
+  # ---------------------------------------------------------------------------
+  maven-publish:
+    needs: release
+    runs-on: ubuntu-latest
+    environment: release
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '22'
+          cache: maven
+          server-id: central
+          server-username: CENTRAL_TOKEN_USERNAME
+          server-password: CENTRAL_TOKEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+      - name: Stage native artifacts per RID
+        run: mkdir -p native/artifacts/{linux-x64,linux-arm64,osx-arm64,win-x64,win-arm64}
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-linux-x64-${{ github.ref_name }}
+          path: native/artifacts/linux-x64
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-linux-arm64-${{ github.ref_name }}
+          path: native/artifacts/linux-arm64
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-macos-arm64-${{ github.ref_name }}
+          path: native/artifacts/osx-arm64
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-win-x64-${{ github.ref_name }}
+          path: native/artifacts/win-x64
+      - uses: actions/download-artifact@v5
+        with:
+          name: native-win-arm64-${{ github.ref_name }}
+          path: native/artifacts/win-arm64
+      - name: Set version from tag
+        run: |
+          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          ./mvnw versions:set -DnewVersion=${VERSION} -DgenerateBackupPoms=false
+          ./mvnw -f java-panama/pom.xml versions:set -DnewVersion=${VERSION} \
+                 -DgenerateBackupPoms=false
+      - name: Deploy JNI JAR to Maven Central
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./mvnw -B clean deploy -DskipTests \
+            -Dgpg.passphrase="${{ secrets.GPG_PASSPHRASE }}"
+      - name: Deploy Panama JAR to Maven Central
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./mvnw -f java-panama/pom.xml -B clean deploy -DskipTests \
+            -Dgpg.passphrase="${{ secrets.GPG_PASSPHRASE }}"
+
+  # ---------------------------------------------------------------------------
+  # Smoke test: verify Maven Central artifacts install and work after publish
+  # ---------------------------------------------------------------------------
+  smoke-maven:
+    needs: maven-publish
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Wait for Maven Central propagation (15 min)
+        run: sleep 900
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '22'
+      - name: Create and test minimal Maven consumer
+        run: |
+          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          mkdir -p /tmp/smoke-maven/src/main/java/smoke
+          cd /tmp/smoke-maven
+          cat > pom.xml << EOF
+          <project>
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>smoke</groupId><artifactId>smoke</artifactId><version>1.0</version>
+            <dependencies>
+              <dependency>
+                <groupId>io.github.lhol</groupId>
+                <artifactId>FSE_Wrapper</artifactId>
+                <version>${VERSION}</version>
+              </dependency>
+            </dependencies>
+            <build><plugins>
+              <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+              </plugin>
+            </plugins></build>
+          </project>
+          EOF
+          cat > src/main/java/smoke/SmokeTest.java << 'JAVA'
+          package smoke;
+          import io.github.lhol.huff0.Huff0;
+          import io.github.lhol.fse.Fse;
+          import java.nio.charset.StandardCharsets;
+          import java.util.Arrays;
+          public class SmokeTest {
+              public static void main(String[] args) throws Exception {
+                  byte[] data = "Hello from FSE_Wrapper Maven smoke test!".getBytes(StandardCharsets.UTF_8);
+                  byte[] h0c  = Huff0.compress(data);
+                  byte[] h0d  = Huff0.decompress(h0c, data.length);
+                  if (!Arrays.equals(data, h0d)) throw new RuntimeException("Huff0 roundtrip failed");
+                  byte[] fsec = Fse.compress(data);
+                  byte[] fsed = Fse.decompress(fsec, data.length);
+                  if (!Arrays.equals(data, fsed)) throw new RuntimeException("FSE roundtrip failed");
+                  System.out.println("Smoke test passed: Huff0 and FSE roundtrip OK");
+              }
+          }
+          JAVA
+          mvn -q compile exec:java -Dexec.mainClass=smoke.SmokeTest
+
+  # ---------------------------------------------------------------------------
   # Run benchmarks and attach results to the release (non-blocking)
   # ---------------------------------------------------------------------------
   bench:
@@ -382,8 +527,8 @@ jobs:
           cd native/build && ./bench_codecs > ../../native_bench.txt
       - name: Java JMH benchmark
         run: |
-          ./mvnw -B package -DskipTests
-          JAR=$(ls target/FSE_Wrapper-*.jar | grep -v original | head -1)
+          ./mvnw -B package -DskipTests -P bench
+          JAR=$(ls target/FSE_Wrapper-*-benchmarks.jar | head -1)
           java -jar "$JAR" -rf json -rff jmh_results.json -wi 3 -i 5
       - uses: actions/setup-dotnet@v5
         with:

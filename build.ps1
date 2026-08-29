@@ -54,17 +54,27 @@ if (-not $SkipNative) {
 # Java (Maven)
 # ---------------------------------------------------------------------------
 if (-not $SkipJava) {
-    Step "Building Java"
+    Step "Building Java (JNI)"
     $mvnw = if ($IsWindows -or $env:OS -eq 'Windows_NT') { "$root/mvnw.cmd" } else { "$root/mvnw" }
 
     if ($SkipTests) {
         & $mvnw -B clean package -DskipTests
     } else {
-        Step "Building and testing Java"
+        Step "Building and testing Java (JNI)"
         & $mvnw -B clean test
     }
-    if ($LASTEXITCODE -ne 0) { Fail "Maven build/test failed" }
-    Ok "Java build complete"
+    if ($LASTEXITCODE -ne 0) { Fail "Maven JNI build/test failed" }
+    Ok "Java JNI build complete"
+
+    Step "Building Java (Panama FFI)"
+    if ($SkipTests) {
+        & $mvnw -f "$root/java-panama/pom.xml" -B clean package -DskipTests
+    } else {
+        Step "Building and testing Java (Panama FFI)"
+        & $mvnw -f "$root/java-panama/pom.xml" -B clean test
+    }
+    if ($LASTEXITCODE -ne 0) { Fail "Maven Panama build/test failed" }
+    Ok "Java Panama build complete"
 }
 
 # ---------------------------------------------------------------------------

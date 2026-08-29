@@ -157,7 +157,7 @@ def _fmt(val):
     if val is None:
         return "—"
     if val >= 1000:
-        return f"{val/1000:.1f}GB/s" if val >= 1024*1024 else f"{val:.0f} MB/s"
+        return f"{val/1000:.1f} GB/s"
     return f"{val:.1f} MB/s"
 
 

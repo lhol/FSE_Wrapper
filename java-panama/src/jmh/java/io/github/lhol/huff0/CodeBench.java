@@ -21,8 +21,6 @@ public class CodeBench {
 
     private byte[] data;
 
-    // ~3.8 KB of mixed Wikipedia-style text with numbers, punctuation, and varied entropy.
-    // Long enough that large benchmark sizes do not repeat a trivially short pattern.
     private static final String MEDIUM_TEXT =
         "Data compression reduces the size of data by encoding information more efficiently. " +
         "Lossless compression algorithms like Huffman coding, arithmetic coding, and Asymmetric " +
@@ -77,8 +75,7 @@ public class CodeBench {
     }
 
     @Benchmark
-    public byte[] huff0CompressJNI() {
-        return Huff0.compress(data);
+    public byte[] huff0CompressPanama() throws Throwable {
+        return Huff0Panama.compress(data);
     }
 }
-

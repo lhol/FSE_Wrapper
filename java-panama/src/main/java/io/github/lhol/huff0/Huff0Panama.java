@@ -25,7 +25,7 @@ public final class Huff0Panama {
     private static final MethodHandle MH_BOUND, MH_COMPRESS, MH_DECOMPRESS;
 
     static {
-        System.loadLibrary("huff0");
+        io.github.lhol.NativeLoader.load("huff0");
         LOOKUP = SymbolLookup.loaderLookup();
         MH_BOUND = LINKER.downcallHandle(
                 LOOKUP.find("huff0_compress_bound").orElseThrow(),

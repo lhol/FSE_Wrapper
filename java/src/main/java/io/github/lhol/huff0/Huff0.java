@@ -15,7 +15,7 @@ package io.github.lhol.huff0;
 public final class Huff0 {
 
     static {
-        System.loadLibrary("huff0");
+        io.github.lhol.NativeLoader.load("huff0");
     }
 
     private Huff0() {}

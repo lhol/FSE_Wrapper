@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.lhol</groupId>
   <artifactId>FSE_Wrapper</artifactId>
-  <version>0.1.1</version>
+  <version>1.1.3</version>
   <name>FSE_Wrapper</name>
   <description>Java JNI bindings for Huff0 and FSE (Finite State Entropy) compression, backed by Cyan4973's FiniteStateEntropy C library.</description>
   <url>https://github.com/lhol/FSE_Wrapper</url>
@@ -37,17 +37,6 @@
   </distributionManagement>
   <dependencies>
     <dependency>
-      <groupId>org.openjdk.jmh</groupId>
-      <artifactId>jmh-core</artifactId>
-      <version>1.37</version>
-    </dependency>
-    <dependency>
-      <groupId>org.openjdk.jmh</groupId>
-      <artifactId>jmh-generator-annprocess</artifactId>
-      <version>1.37</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
       <version>5.10.0</version>
@@ -60,25 +49,6 @@
     <testSourceDirectory>java/src/test/java</testSourceDirectory>
 
     <plugins>
-      <!-- Add jmh source directory to compilation -->
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <version>3.6.0</version>
-        <executions>
-          <execution>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>java/src/jmh/java</source>
-              </sources>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -97,7 +67,9 @@
         </configuration>
       </plugin>
 
-      <!-- Copy native libs into the JAR under /natives -->
+      <!-- Copy native libs into the JAR under /natives/{rid}/ to avoid cross-platform name collisions.
+           In CI: artifacts are pre-staged into native/artifacts/{rid}/ by the workflow.
+           Locally: native/build and native/build/Release are picked up under natives/local/. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
@@ -110,21 +82,48 @@
               <goal>copy-resources</goal>
             </goals>
             <configuration>
-              <outputDirectory>target/classes/natives</outputDirectory>
+              <outputDirectory>${project.build.outputDirectory}</outputDirectory>
               <resources>
+                <!-- CI: per-platform artifacts staged into native/artifacts/{rid}/ -->
+                <resource>
+                  <directory>${project.basedir}/native/artifacts/linux-x64</directory>
+                  <targetPath>natives/linux-x64</targetPath>
+                  <includes><include>*.so</include></includes>
+                </resource>
+                <resource>
+                  <directory>${project.basedir}/native/artifacts/linux-arm64</directory>
+                  <targetPath>natives/linux-arm64</targetPath>
+                  <includes><include>*.so</include></includes>
+                </resource>
+                <resource>
+                  <directory>${project.basedir}/native/artifacts/osx-arm64</directory>
+                  <targetPath>natives/osx-arm64</targetPath>
+                  <includes><include>*.dylib</include></includes>
+                </resource>
+                <resource>
+                  <directory>${project.basedir}/native/artifacts/win-x64</directory>
+                  <targetPath>natives/win-x64</targetPath>
+                  <includes><include>*.dll</include></includes>
+                </resource>
+                <resource>
+                  <directory>${project.basedir}/native/artifacts/win-arm64</directory>
+                  <targetPath>natives/win-arm64</targetPath>
+                  <includes><include>*.dll</include></includes>
+                </resource>
+                <!-- Local developer build fallback (any OS) -->
                 <resource>
                   <directory>${project.basedir}/native/build</directory>
+                  <targetPath>natives/local</targetPath>
                   <includes>
                     <include>*.so</include>
                     <include>*.dylib</include>
-                    <include>*.dll</include>  <!-- CI: all platforms downloaded flat here -->
+                    <include>*.dll</include>
                   </includes>
                 </resource>
                 <resource>
                   <directory>${project.basedir}/native/build/Release</directory>
-                  <includes>
-                    <include>*.dll</include>  <!-- Local Windows build -->
-                  </includes>
+                  <targetPath>natives/local</targetPath>
+                  <includes><include>*.dll</include></includes>
                 </resource>
               </resources>
             </configuration>
@@ -132,32 +131,6 @@
         </executions>
       </plugin>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>3.5.0</version>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals><goal>shade</goal></goals>
-            <configuration>
-              <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>org.openjdk.jmh.Main</mainClass>
-                </transformer>
-                <!-- Required for JMH: preserve benchmark metadata merged across JARs -->
-                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                  <resource>META-INF/BenchmarkList</resource>
-                </transformer>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                  <resource>META-INF/CompilerHints</resource>
-                </transformer>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-              </transformers>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
@@ -176,6 +149,7 @@
         <version>3.6.3</version>
         <configuration>
           <source>11</source>
+          <doclint>none</doclint>
         </configuration>
         <executions>
           <execution>
@@ -217,4 +191,79 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!--
+      bench profile: produces a self-contained fat JAR (FSE_Wrapper-X.Y.Z-benchmarks.jar)
+      that can be run directly with: java -jar FSE_Wrapper-X.Y.Z-benchmarks.jar
+      Activated with: ./mvnw -B package -DskipTests -P bench
+    -->
+    <profile>
+      <id>bench</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.openjdk.jmh</groupId>
+          <artifactId>jmh-core</artifactId>
+          <version>1.37</version>
+        </dependency>
+        <dependency>
+          <groupId>org.openjdk.jmh</groupId>
+          <artifactId>jmh-generator-annprocess</artifactId>
+          <version>1.37</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <!-- Add JMH source directory when building benchmarks -->
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <version>3.6.0</version>
+            <executions>
+              <execution>
+                <phase>generate-sources</phase>
+                <goals><goal>add-source</goal></goals>
+                <configuration>
+                  <sources>
+                    <source>java/src/jmh/java</source>
+                  </sources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <!-- Shade into a benchmarks fat JAR with JMH main class -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>3.5.0</version>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals><goal>shade</goal></goals>
+                <configuration>
+                  <shadedArtifactAttached>true</shadedArtifactAttached>
+                  <shadedClassifierName>benchmarks</shadedClassifierName>
+                  <createDependencyReducedPom>false</createDependencyReducedPom>
+                  <transformers>
+                    <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                      <mainClass>org.openjdk.jmh.Main</mainClass>
+                    </transformer>
+                    <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                      <resource>META-INF/BenchmarkList</resource>
+                    </transformer>
+                    <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                      <resource>META-INF/CompilerHints</resource>
+                    </transformer>
+                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                  </transformers>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
 </project>

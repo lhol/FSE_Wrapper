@@ -9,7 +9,7 @@ FSE_Wrapper exposes two entropy-coding algorithms:
 - **Huff0** — a Huffman entropy coder optimised for fast single-pass compression and decompression of byte streams.
 - **FSE** (Finite State Entropy) — a table-based implementation of Asymmetric Numeral Systems (tANS) that achieves near-theoretical entropy with high throughput.
 
-Both algorithms are used internally by Zstandard (zstd). This library makes them directly available as lightweight JVM and .NET APIs backed by the same native C implementation.
+Both algorithms are used internally by Zstandard (zstd). This library makes them directly available as lightweight JVM and .NET APIs backed by a native C implementation.
 
 ## Components
 

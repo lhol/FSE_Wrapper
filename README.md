@@ -254,7 +254,7 @@ See `specs/v0.1.1_spec.md` for the one-time Maven Central and GPG setup steps.
 
 ## License
 
-This project builds upon a BSD 2-Clause licensed part:
+This project builds upon a BSD 2-Clause licensed part (also see LICENSE and NOTICE files):
 
 ### FiniteStateEntropy (submodule)
 ```

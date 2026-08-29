@@ -121,6 +121,8 @@ byte[] restored   = FseInterop.Decompress(compressed, input.Length);
 ```
 
 > **Note:** Both Huff0 and FSE work best on data with non-uniform byte distributions. Highly random or already-compressed data will not reduce in size.
+>
+> **Minimum input size:** Huff0 requires at least **12 bytes**; FSE requires at least **3 bytes**. Inputs below these thresholds throw `IllegalArgumentException` / `ArgumentException`. For meaningful compression gains, use at least **128 bytes** of data with varied byte content. Both algorithms throw `IllegalStateException` / `InvalidOperationException` when compression produces no output (incompressible data).
 
 ## Building from source
 
